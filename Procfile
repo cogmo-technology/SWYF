@@ -1,1 +1,1 @@
-web: gunicorn flasktry:app
+web: gunicorn services.virtual-tryon.flasktry:app
