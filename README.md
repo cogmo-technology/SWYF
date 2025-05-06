@@ -29,12 +29,9 @@ SWYF is an innovative AI-powered virtual try-on platform that revolutionizes onl
 - 👔 **Virtual Try-On**: Try clothing items virtually in real-time using AI technology
 - 🎨 **Skin Tone Analysis**: Get personalized color recommendations based on your skin tone
 - 🏆 **Rewards Program**: Earn tokens for interactions with the platform
-- 💳 **Buy Now Pay Later**: Flexible payment options secured by blockchain
 - 📱 **Responsive Design**: Works seamlessly on desktop and mobile devices
 - 🌙 **Dark Mode Support**: Enhanced viewing experience with full dark mode support
 - 🔄 **Interactive 3D Background**: Engaging user experience with interactive Spline 3D elements
-- 📦 **Product Catalog**: Browse and manage clothing items for virtual try-on
-- 🤝 **Partner Integration**: Opportunity for retailers to integrate with our platform
 
 ## 🏗️ Project Structure
 
