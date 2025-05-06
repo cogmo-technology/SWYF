@@ -1,7 +1,7 @@
 # SWYF - See What You Fit
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Vatsal212005/SWYF-Virtual-TryOn/main/assets/logo.png" alt="SWYF Logo" width="300">
+  <img src="https://raw.githubusercontent.com/Vatsal212005/SWYF/main/assets/logo.png" alt="SWYF Logo" width="300">
 </p>
 
 > **Project Status: Early Development (Started: May 5th, 2025)**
