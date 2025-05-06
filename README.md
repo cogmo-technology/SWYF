@@ -4,7 +4,7 @@
   <img src="https://raw.githubusercontent.com/Vatsal212005/SWYF-Virtual-TryOn/main/assets/logo.png" alt="SWYF Logo" width="300">
 </p>
 
-> **Project Status: Early Development (Started: April 4, 2025)**
+> **Project Status: Early Development (Started: May 5th, 2025)**
 >
 > This project is currently in its initial development phase. Core features are functional but may contain bugs. Please report any issues through our issue tracker.
 
@@ -212,14 +212,14 @@ Our rewards program offers:
 
 ## 📝 Development Log
 
-### April 5, 2025
+### May 5, 2025
 - Fixed image loading issues in product catalog
 - Optimized Spline 3D background for faster loading
 - Created placeholder image fallbacks for better UX
 - Added hero image to landing page
 - Updated documentation with acknowledgements
 
-### April 4, 2025
+### May 6, 2025
 - Initial project setup
 - Created basic React frontend with TypeScript
 - Implemented Flask backend API
@@ -241,7 +241,6 @@ Our rewards program offers:
 - ✅ Theme-aware components with proper contrast
 
 ### In Progress
-- 🔄 Fixing image loading issues in catalog
 - 🔄 Optimizing 3D element performance
 - 🔄 Enhancing error handling for assets
 - 🔄 Building FAQ sections
