@@ -82,14 +82,6 @@ swyf/
 
 > **Note:** These are early prototype screenshots. The UI is evolving daily as we develop the platform.
 
-### Landing Page
-![Landing Page](assets/landingpage.png)
-*Our modern, engaging landing page showcasing SWYF's key features*
-
-### Blockchain Features
-![Blockchain Page](assets/blockchain.png)
-*Blockchain integration providing enhanced security, transparency, and efficiency*
-
 ### Projects
 ![Projects](assets/projects.png)
 *AI-driven skin tone detection with virtual try-on for customized outfit suggestions*
