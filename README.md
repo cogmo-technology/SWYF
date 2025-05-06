@@ -66,7 +66,6 @@ swyf/
 │
 ├── assets/                      # Shared assets
 │   ├── landingpage.jpg          # Landing page preview
-│   ├── blockchainpage.jpg       # Blockchain page preview
 │   └── ...                      # Other image assets
 │
 ├── docs/                        # Project documentation
@@ -123,7 +122,7 @@ swyf/
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/Vatsal212005/SWYF-Virtual-TryOn.git
+git clone https://github.com/Vatsal212005/SWYF.git
 cd swyf
 ```
 
@@ -173,16 +172,6 @@ npm run dev
    - Main application: `http://localhost:5000`
    - Development server: `http://localhost:3000`
 
-## ⛓️ Blockchain Integration
-
-SWYF leverages blockchain technology to provide:
-
-- **Enhanced Security**: Secure transactions and personal data
-- **Decentralization**: Eliminating single points of failure
-- **Smart Contracts**: Self-executing contracts for automated processes
-- **Transparency**: Complete transparency in transactions and operations
-- **Buy Now Pay Later**: Flexible payment options secured by smart contracts
-
 ## 🏆 Rewards System
 
 Our rewards program offers:
@@ -230,7 +219,6 @@ Our rewards program offers:
 
 ### Coming Soon
 - ⏳ User authentication
-- ⏳ Full blockchain integration
 - ⏳ Complete virtual try-on implementation
 
 ## 🙏 Acknowledgements
