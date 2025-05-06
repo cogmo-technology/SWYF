@@ -18,7 +18,6 @@ SWYF is an innovative AI-powered virtual try-on platform that revolutionizes onl
 - [Technologies Used](#technologies-used)
 - [Installation](#installation)
 - [Usage](#usage)
-- [Blockchain Integration](#blockchain-integration)
 - [Rewards System](#rewards-system)
 - [Development Log](#development-log)
 - [Current Status](#current-status)
