@@ -112,11 +112,6 @@ swyf/
 - TensorFlow/PyTorch for AI models
 - RESTful API design
 
-### Blockchain
-- Smart contracts for secure transactions
-- Decentralized architecture
-- Tokenized rewards system
-
 ## 🚀 Installation
 
 > **Note:** Installation steps are evolving as the project develops. Check back for updates.
