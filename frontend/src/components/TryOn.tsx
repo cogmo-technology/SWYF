@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Separator } from "@/components/ui/separator";
-import { Sparkles, Shirt, ShoppingBag, Camera, Upload, Loader2, Smartphone } from "lucide-react";
+import { Sparkles, Shirt, ShoppingBag, Camera, Upload, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { Link } from "react-router-dom";
@@ -31,25 +31,10 @@ const TryOn = () => {
   const [useCamera] = useState(true);
   const [catalogData, setCatalogData] = useState<CatalogData | null>(null);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchCatalog();
-    
-    // Check if user is on a mobile device
-    const checkMobile = () => {
-      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
-      const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
-      setIsMobile(mobileRegex.test(userAgent));
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => {
-      window.removeEventListener('resize', checkMobile);
-    };
   }, []);
 
   const fetchCatalog = async () => {
@@ -130,52 +115,10 @@ const TryOn = () => {
     }
   };
 
-  const redirectToWannaAR = () => {
-    window.open("https://wanna-clothes.ar.wanna.fashion/", "_blank");
-  };
-
   const getFullImageUrl = (path: string) => {
     if (path.startsWith('http')) return path;
     return `${window.location.origin}${path}`;
   };
-
-  // If mobile, show only the Try Now button
-  if (isMobile) {
-    return (
-      <div className="flex flex-col items-center justify-center py-8 space-y-6">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-3">Virtual Try-On Experience</h2>
-          <p className="text-muted-foreground mb-6">
-            Try on clothing virtually using our AR technology on your mobile device
-          </p>
-        </div>
-
-        <div className="w-full max-w-md">
-          <Card className="shadow-lg backdrop-blur-sm bg-primary/10 border-primary">
-            <CardContent className="pt-8 pb-8">
-              <div className="flex flex-col items-center text-center space-y-6">
-                <Smartphone className="h-16 w-16 text-primary" />
-                <div>
-                  <h3 className="text-xl font-bold">Enhanced Mobile Experience</h3>
-                  <p className="text-sm text-muted-foreground mt-2 mb-6">
-                    Our AR clothing try-on service works best on mobile devices. Click below to try it now!
-                  </p>
-                </div>
-                <Button 
-                  onClick={redirectToWannaAR} 
-                  className="w-full bg-primary hover:bg-primary/90 text-lg py-6"
-                  size="lg"
-                >
-                  <Sparkles className="mr-2 h-5 w-5" />
-                  Try Now
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <section className="py-16 relative">

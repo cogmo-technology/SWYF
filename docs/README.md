@@ -170,21 +170,11 @@ npm run dev
    - Main application: `http://localhost:5000`
    - Development server: `http://localhost:3000`
 
-## ⛓️ Blockchain Integration
-
-SWYF leverages blockchain technology to provide:
-
-- **Enhanced Security**: Secure transactions and personal data
-- **Decentralization**: Eliminating single points of failure
-- **Smart Contracts**: Self-executing contracts for automated processes
-- **Transparency**: Complete transparency in transactions and operations
-- **Buy Now Pay Later**: Flexible payment options secured by smart contracts
-
 ## 🏆 Rewards System
 
 Our rewards program offers:
 
-- **SWYF Tokens**: Earn tokens for every interaction with the platform
+- **Loyalty Points**: Earn points for every interaction with the platform
 - **Progress Tracking**: Track your rewards journey
 - **Exclusive Benefits**: Unlock discounts, early access, and special features
 - **Multi-level Rewards**: Progress through different levels to earn more benefits

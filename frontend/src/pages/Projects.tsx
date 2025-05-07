@@ -3,7 +3,8 @@ import Layout from "@/components/Layout";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import SkinToneAnalysis from "@/components/SkinToneAnalysis";
 import TryOn from "@/components/TryOn";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Shirt, Package } from "lucide-react";
+import ThreeDGenerator from "@/components/ThreeDGenerator";
 
 const Projects = () => {
   const [activeTab, setActiveTab] = useState("tryon");
@@ -28,7 +29,7 @@ const Projects = () => {
               onValueChange={setActiveTab}
               className="w-full"
             >
-              <TabsList className="grid w-full grid-cols-2 mb-8 p-1 rounded-xl bg-muted/50 backdrop-blur-sm">
+              <TabsList className="grid w-full grid-cols-3 mb-8 p-1 rounded-xl bg-muted/50 backdrop-blur-sm">
                 <TabsTrigger 
                   value="skin-tone" 
                   className="py-3 rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800 data-[state=active]:shadow-md transition-all duration-200 dark:text-foreground dark:data-[state=active]:text-white"
@@ -40,7 +41,15 @@ const Projects = () => {
                   value="tryon" 
                   className="py-3 rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800 data-[state=active]:shadow-md transition-all duration-200 dark:text-foreground dark:data-[state=active]:text-white"
                 >
+                  <Shirt className="mr-2 h-5 w-5" />
                   <span>Virtual Try-On</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="3d-generator" 
+                  className="py-3 rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-gray-800 data-[state=active]:shadow-md transition-all duration-200 dark:text-foreground dark:data-[state=active]:text-white"
+                >
+                  <Package className="mr-2 h-5 w-5 text-blue-500" />
+                  <span>3D Generator</span>
                 </TabsTrigger>
               </TabsList>
               
@@ -50,6 +59,10 @@ const Projects = () => {
               
               <TabsContent value="tryon" className="space-y-6">
                 <TryOn />
+              </TabsContent>
+              
+              <TabsContent value="3d-generator" className="space-y-6">
+                <ThreeDGenerator />
               </TabsContent>
             </Tabs>
           </div>

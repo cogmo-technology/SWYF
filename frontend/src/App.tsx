@@ -14,7 +14,6 @@ import Contact from "./pages/Contact";
 import Projects from "./pages/Projects";
 import NotFound from "./pages/NotFound";
 import CatalogPage from "./pages/CatalogPage";
-import BlockchainFeatures from "./pages/BlockchainFeatures";
 import Rewards from "./pages/Rewards";
 
 const queryClient = new QueryClient();
@@ -47,7 +46,6 @@ const App = () => (
               <Route path="/contact" element={<Contact />} />
               <Route path="/projects" element={<Projects />} />
               <Route path="/catalog" element={<CatalogPage />} />
-              <Route path="/blockchain-features" element={<BlockchainFeatures />} />
               <Route path="/rewards" element={<Rewards />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

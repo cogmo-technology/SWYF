@@ -235,20 +235,6 @@ def serve_static_assets(filename):
     response.headers['Expires'] = '0'
     return response
 
-# New API endpoint for blockchain features
-@app.route('/api/blockchain/stats', methods=['GET'])
-def blockchain_stats():
-    global BLOCKCHAIN_DATA
-    # Simulate real-time updates
-    BLOCKCHAIN_DATA['transactions'] += random.randint(1, 10)
-    BLOCKCHAIN_DATA['active_nodes'] = max(100, min(200, BLOCKCHAIN_DATA['active_nodes'] + random.randint(-5, 5)))
-    BLOCKCHAIN_DATA['block_height'] += 1
-    
-    return jsonify({
-        'success': True,
-        'data': BLOCKCHAIN_DATA
-    })
-
 # New API endpoint for rewards system
 @app.route('/api/rewards/status', methods=['GET'])
 def rewards_status():
