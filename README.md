@@ -4,7 +4,6 @@
   <img src="https://raw.githubusercontent.com/Vatsal212005/SWYF/main/assets/logo.png" alt="SWYF Logo" width="300">
 </p>
 
-> **Project Status: Early Development (Started: May 5th, 2025)**
 >
 > This project is currently in its initial development phase. Core features are functional but may contain bugs. Please report any issues through our issue tracker.
 
