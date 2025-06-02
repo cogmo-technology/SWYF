@@ -34,9 +34,13 @@ COPY services/virtual-tryon/ ./
 # Copia o build do frontend para a pasta estática do Flask
 COPY --from=frontend-builder /app/frontend/dist/ ./static/react-app/
 
+# Copia o pyproject.toml
+COPY pyproject.toml ./
+
 # Instala dependências do backend
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+RUN pip install poetry
+RUN poetry config virtualenvs.create false
+RUN poetry install --no-interaction --no-ansi --no-root
 
 # Expõe a porta padrão do Flask
 EXPOSE 5000
