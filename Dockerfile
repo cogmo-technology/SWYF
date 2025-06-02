@@ -16,7 +16,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # ----------- Stage 2: Backend + Final Image -----------
-FROM python:3.10-slim AS backend
+FROM python:3.11-slim AS backend
 
 # Instala dependências do sistema
 RUN apt-get update && apt-get install -y \
@@ -34,9 +34,12 @@ COPY services/virtual-tryon/ ./
 # Copia o build do frontend para a pasta estática do Flask
 COPY --from=frontend-builder /app/frontend/dist/ ./static/react-app/
 
+
 # Instala dependências do backend
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+RUN pip install poetry
+COPY pyproject.toml ./
+RUN poetry config virtualenvs.create false
+RUN poetry install --no-interaction --no-ansi --no-root
 
 # Expõe a porta padrão do Flask
 EXPOSE 5000
