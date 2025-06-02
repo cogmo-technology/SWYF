@@ -1,0 +1,62 @@
+name: BuildDocker_Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  BuildPushUpdatePortainer:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4.1.1
+      - name: Azure Container Registry Login
+        uses: azure/docker-login@v2
+        with:
+          username: ${{ secrets.AZURE_REGISTRY_LOGIN }}
+          password: ${{ secrets.AZURE_REGISTRY_PASS }}
+          login-server: cogmo.azurecr.io
+
+      - name: Docker build and push
+        uses: cloudposse/github-action-docker-build-push@1.15.0
+        with:
+          workdir: "./"
+          file: "Dockerfile"
+          registry: "cogmo.azurecr.io"
+          image_name: "swyf"
+          tags: "latest"
+          push: true
+
+      - name: Update Portainer Stack
+        continue-on-error: false
+        run: |
+          set -e
+
+          # Get JWT token
+          JWT_RESPONSE=$(curl -s -X POST "https://portainer.cogmo.com.br/api/auth" \
+          -H "Content-Type: application/json" \
+          -d '{
+                "username": "github-actions",
+                "password": "${{ secrets.PORTAINER_PASSWORD }}"
+              }')
+
+          PORTAINER_TOKEN=$(echo "$JWT_RESPONSE" | python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["jwt"])')
+
+          STACK_IDS=(229)
+
+          for STACK_ID in "${STACK_IDS[@]}"; do
+            STACK_CONTENT_ESCAPED=$(curl -s -X GET "https://portainer.cogmo.com.br/api/stacks/$STACK_ID/file" \
+            -H "Authorization: Bearer $PORTAINER_TOKEN" \
+            -H "X-CSRF-Token: ${{ secrets.PORTAINER_CSRF_TOKEN }}" | jq -r '.StackFileContent | @json')
+
+            curl -X PUT "https://portainer.cogmo.com.br/api/stacks/$STACK_ID?endpointId=3" \
+            -H "Authorization: Bearer $PORTAINER_TOKEN" \
+            -H "X-CSRF-Token: ${{ secrets.PORTAINER_CSRF_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+                  \"env\": [],
+                  \"prune\": true,
+                  \"pullImage\": true,
+                  \"stackFileContent\": $STACK_CONTENT_ESCAPED
+                }"
+          done

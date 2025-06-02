@@ -1,0 +1,28 @@
+name: BuildDocker_Development
+
+on:
+  push:
+    branches: [dev]
+
+jobs:
+  BuildPush:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4.1.1
+      - name: Azure Container Registry Login
+        uses: Azure/docker-login@v1
+        with:
+          username: ${{ secrets.AZURE_REGISTRY_LOGIN }}
+          password: ${{ secrets.AZURE_REGISTRY_PASS }}
+          login-server: cogmo.azurecr.io
+
+      - name: Docker build and push
+        uses: cloudposse/github-action-docker-build-push@1.15.0
+        with:
+          workdir: "./"
+          file: "Dockerfile"
+          registry: "cogmo.azurecr.io"
+          image_name: "swyf"
+          tags: "dev"
+          push: true
