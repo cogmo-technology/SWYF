@@ -10,6 +10,7 @@ from werkzeug.utils import secure_filename
 import base64
 from datetime import datetime
 import random  # For simulating blockchain and rewards data
+import requests  # For downloading images supplied via URL
 
 # Import SkinToneClassifier
 try:
@@ -79,18 +80,26 @@ DEMO_IMAGES = {
 # Default catalog items
 default_catalog = {
     'shirts': [
-        {'id': '1', 'name': 'Blue T-shirt', 'image': '/static/assets/shirt1.png', 'type': 'default'},
-        {'id': '2', 'name': 'Blue Shirt', 'image': '/static/assets/shirt2.png', 'type': 'default'},
-        {'id': '3', 'name': 'Black T-shirt', 'image': '/static/assets/shirt51.jpg', 'type': 'default'},
-        {'id': '4', 'name': 'Grey T-shirt', 'image': '/static/assets/shirt6.png', 'type': 'default'}
+        {'id': '1', 'name': 'Blue T-shirt',
+            'image': '/static/assets/shirt1.png', 'type': 'default'},
+        {'id': '2', 'name': 'Blue Shirt',
+            'image': '/static/assets/shirt2.png', 'type': 'default'},
+        {'id': '3', 'name': 'Black T-shirt',
+            'image': '/static/assets/shirt51.jpg', 'type': 'default'},
+        {'id': '4', 'name': 'Grey T-shirt',
+            'image': '/static/assets/shirt6.png', 'type': 'default'}
     ],
     'pants': [
-        {'id': '1', 'name': 'White Pants', 'image': '/static/assets/pant7.jpg', 'type': 'default'},
-        {'id': '2', 'name': 'Blue Pants', 'image': '/static/assets/pant21.png', 'type': 'default'}
+        {'id': '1', 'name': 'White Pants',
+            'image': '/static/assets/pant7.jpg', 'type': 'default'},
+        {'id': '2', 'name': 'Blue Pants',
+            'image': '/static/assets/pant21.png', 'type': 'default'}
     ]
 }
 
 # Load catalog from file or use default
+
+
 def load_catalog():
     try:
         if os.path.exists(os.path.join(app.root_path, CATALOG_FILE)):
@@ -102,6 +111,8 @@ def load_catalog():
         return default_catalog
 
 # Save catalog to file
+
+
 def save_catalog(catalog_data):
     try:
         with open(os.path.join(app.root_path, CATALOG_FILE), 'w') as f:
@@ -109,11 +120,14 @@ def save_catalog(catalog_data):
     except Exception as e:
         print(f"Error saving catalog: {str(e)}")
 
+
 # Initialize catalog
 catalog = load_catalog()
 
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 def remove_background(input_path, output_path):
     """
@@ -126,97 +140,106 @@ def remove_background(input_path, output_path):
         if img is None:
             print(f"Error: Could not read image at {input_path}")
             return False
-            
+
         # Convert to RGB for processing
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        
+
         # Create a mask with multiple methods and combine them
         # Method 1: Simple thresholding on grayscale
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         _, thresh1 = cv2.threshold(gray, 240, 255, cv2.THRESH_BINARY_INV)
-        
+
         # Method 2: Color-based segmentation
         # Convert to HSV color space
         img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        
+
         # Define range for background colors (assuming white/light background)
         lower_white = np.array([0, 0, 180])
         upper_white = np.array([180, 30, 255])
-        
+
         # Create mask for white/light background
         thresh2 = cv2.inRange(img_hsv, lower_white, upper_white)
         thresh2 = cv2.bitwise_not(thresh2)
-        
+
         # Method 3: Adaptive thresholding for better handling of dark items
         adaptive_thresh = cv2.adaptiveThreshold(
             gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2
         )
-        
+
         # Combine masks
         combined_mask = cv2.bitwise_or(thresh1, thresh2)
         combined_mask = cv2.bitwise_or(combined_mask, adaptive_thresh)
-        
+
         # Apply morphological operations to improve the mask
         kernel = np.ones((5, 5), np.uint8)
         combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, kernel)
-        combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, kernel)
-        
+        combined_mask = cv2.morphologyEx(
+            combined_mask, cv2.MORPH_CLOSE, kernel)
+
         # Find the largest contour (assumed to be the clothing item)
-        contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
+        contours, _ = cv2.findContours(
+            combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
         # If contours found, use the largest one
         if contours:
             # Create a new mask with only the largest contour
             refined_mask = np.zeros_like(combined_mask)
             largest_contour = max(contours, key=cv2.contourArea)
             cv2.drawContours(refined_mask, [largest_contour], 0, 255, -1)
-            
+
             # Fill holes in the contour
             # First invert the mask to make holes white
             mask_inv = cv2.bitwise_not(refined_mask)
             # Find all contours in the inverted mask
-            hole_contours, _ = cv2.findContours(mask_inv, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            hole_contours, _ = cv2.findContours(
+                mask_inv, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             # Fill all but the largest contour (which is the outer boundary)
             for contour in hole_contours:
                 if cv2.contourArea(contour) < cv2.contourArea(largest_contour):
                     cv2.drawContours(refined_mask, [contour], 0, 255, -1)
-            
+
             # Dilate to ensure we don't crop the clothing too tightly
             refined_mask = cv2.dilate(refined_mask, kernel, iterations=2)
         else:
             refined_mask = combined_mask
-        
+
         # Final cleanup
         refined_mask = cv2.GaussianBlur(refined_mask, (5, 5), 0)
-        _, refined_mask = cv2.threshold(refined_mask, 127, 255, cv2.THRESH_BINARY)
-        
+        _, refined_mask = cv2.threshold(
+            refined_mask, 127, 255, cv2.THRESH_BINARY)
+
         # Create alpha channel from mask
         alpha = refined_mask
-        
+
         # Convert image to BGRA (add alpha channel)
         bgra = cv2.cvtColor(img, cv2.COLOR_BGR2BGRA)
-        
+
         # Set alpha channel in BGRA image
         bgra[:, :, 3] = alpha
-        
+
         # Save the image with transparency
         cv2.imwrite(output_path, bgra)
-        
+
         # Verification check
         result = cv2.imread(output_path, cv2.IMREAD_UNCHANGED)
-        if result is None or result.shape[2] < 4:  # Check if alpha channel exists
-            print(f"Warning: Failed to create transparent image. Saving with fallback method.")
+        # Check if alpha channel exists
+        if result is None or result.shape[2] < 4:
+            print(
+                f"Warning: Failed to create transparent image. Saving with fallback method.")
             # Fallback method: just save the original with very basic background removal
-            _, simple_mask = cv2.threshold(gray, 250, 255, cv2.THRESH_BINARY_INV)
+            _, simple_mask = cv2.threshold(
+                gray, 250, 255, cv2.THRESH_BINARY_INV)
             bgra[:, :, 3] = simple_mask
             cv2.imwrite(output_path, bgra)
-        
+
         return True
     except Exception as e:
         print(f"Error removing background: {str(e)}")
         return False
 
 # Serve React App
+
+
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve_react_app(path):
@@ -226,9 +249,12 @@ def serve_react_app(path):
         return send_from_directory(os.path.join(app.static_folder, 'react-app'), 'index.html')
 
 # Add explicit route to serve static assets
+
+
 @app.route('/static/assets/<path:filename>')
 def serve_static_assets(filename):
-    response = send_from_directory(os.path.join(app.static_folder, 'assets'), filename)
+    response = send_from_directory(os.path.join(
+        app.static_folder, 'assets'), filename)
     # Set Cache-Control header to prevent caching issues
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['Pragma'] = 'no-cache'
@@ -236,6 +262,8 @@ def serve_static_assets(filename):
     return response
 
 # New API endpoint for rewards system
+
+
 @app.route('/api/rewards/status', methods=['GET'])
 def rewards_status():
     return jsonify({
@@ -244,12 +272,14 @@ def rewards_status():
     })
 
 # New API endpoint to update rewards
+
+
 @app.route('/api/rewards/update', methods=['POST'])
 def update_rewards():
     try:
         data = request.get_json()
         action = data.get('action')
-        
+
         if action == 'try_on':
             REWARDS_DATA['tokens'] += 5
             # Update achievement progress
@@ -264,13 +294,14 @@ def update_rewards():
                 if achievement['title'] == 'Social Butterfly':
                     if achievement['progress'] < achievement['total']:
                         achievement['progress'] += 1
-        
+
         # Update level progress
-        REWARDS_DATA['progress'] = min(100, REWARDS_DATA['progress'] + random.randint(1, 5))
+        REWARDS_DATA['progress'] = min(
+            100, REWARDS_DATA['progress'] + random.randint(1, 5))
         if REWARDS_DATA['progress'] >= 100:
             REWARDS_DATA['level'] += 1
             REWARDS_DATA['progress'] = 0
-        
+
         return jsonify({
             'success': True,
             'data': REWARDS_DATA
@@ -282,13 +313,15 @@ def update_rewards():
         })
 
 # Enhanced try-on API with rewards integration
+
+
 @app.route('/api/tryon', methods=['POST'])
 def tryon_api():
     try:
         data = request.get_json()
         shirt_id = data.get('shirt', '0')
         pant_id = data.get('pant', '0')
-        
+
         # Always use camera mode, ignoring the use_camera flag
         # Redirect to the camera-based try-on experience
         return jsonify({
@@ -296,19 +329,19 @@ def tryon_api():
             'redirect': True,
             'url': f'/api/predict?shirt={shirt_id}&pant={pant_id}'
         })
-        
+
         # The code below will never be reached since we're always redirecting
         # For demo purposes, return a static image based on the selection
         image_key = f"{shirt_id}_{pant_id}"
         image_url = DEMO_IMAGES.get(image_key, DEMO_IMAGES['default'])
-        
+
         # Update rewards for try-on action
         update_rewards({'action': 'try_on'})
-        
+
         # Simulate processing time
         import time
         time.sleep(1)
-        
+
         result = {
             'success': True,
             'message': f'Try-on successful with shirt {shirt_id} and pant {pant_id}',
@@ -323,6 +356,8 @@ def tryon_api():
         return jsonify({'success': False, 'error': str(e)})
 
 # API endpoint for catalog
+
+
 @app.route('/api/catalog', methods=['GET'])
 def get_catalog():
     global catalog
@@ -330,20 +365,22 @@ def get_catalog():
     return jsonify(catalog)
 
 # API endpoint to upload new clothing items
+
+
 @app.route('/api/catalog/upload', methods=['POST'])
 def upload_item():
     global catalog
-    
+
     if 'file' not in request.files:
         return jsonify({'success': False, 'error': 'No file part'})
-    
+
     file = request.files['file']
     item_type = request.form.get('type', 'shirt')
     name = request.form.get('name', f'Custom {item_type.capitalize()}')
-    
+
     if file.filename == '':
         return jsonify({'success': False, 'error': 'No selected file'})
-    
+
     if file and allowed_file(file.filename):
         try:
             # Generate unique filename
@@ -351,30 +388,33 @@ def upload_item():
             unique_id = str(uuid.uuid4())
             file_ext = os.path.splitext(filename)[1]
             new_filename = f"{item_type}_{unique_id}{file_ext}"
-            
+
             # Create directories if they don't exist
-            os.makedirs(os.path.join(app.root_path, USER_UPLOADS_DIR), exist_ok=True)
-            
+            os.makedirs(os.path.join(app.root_path,
+                        USER_UPLOADS_DIR), exist_ok=True)
+
             # Save original file
-            original_path = os.path.join(app.root_path, USER_UPLOADS_DIR, f"original_{new_filename}")
+            original_path = os.path.join(
+                app.root_path, USER_UPLOADS_DIR, f"original_{new_filename}")
             file.save(original_path)
-            
+
             # Process image to remove background
             processed_filename = f"processed_{new_filename}"
-            processed_path = os.path.join(app.root_path, USER_UPLOADS_DIR, processed_filename)
-            
+            processed_path = os.path.join(
+                app.root_path, USER_UPLOADS_DIR, processed_filename)
+
             print(f"Processing image: {original_path} -> {processed_path}")
             success = remove_background(original_path, processed_path)
-            
+
             if not success:
                 return jsonify({
-                    'success': False, 
+                    'success': False,
                     'error': 'Failed to process image. Please ensure the image has good contrast with its background.'
                 })
-            
+
             # Add to catalog
             current_catalog = load_catalog()
-            
+
             if item_type == 'shirt':
                 collection = 'shirts'
                 new_id = str(len(current_catalog[collection]) + 1)
@@ -384,18 +424,18 @@ def upload_item():
             else:
                 collection = f"{item_type}s"
                 new_id = unique_id
-            
+
             item = {
                 'id': new_id,
                 'name': name,
                 'image': f'/{USER_UPLOADS_DIR}/{processed_filename}',
                 'type': 'user'
             }
-            
+
             current_catalog[collection].append(item)
             save_catalog(current_catalog)
             catalog = current_catalog
-            
+
             return jsonify({
                 'success': True,
                 'message': f'{item_type.capitalize()} uploaded and processed successfully',
@@ -404,13 +444,14 @@ def upload_item():
         except Exception as e:
             print(f"Error in upload process: {str(e)}")
             return jsonify({
-                'success': False, 
+                'success': False,
                 'error': f'An error occurred while processing your upload: {str(e)}'
             })
-    
+
     return jsonify({'success': False, 'error': 'File type not allowed. Please upload a JPG, JPEG, or PNG image.'})
 
-@app.route('/predict', methods=['GET','POST'])
+
+@app.route('/predict', methods=['GET', 'POST'])
 def predict():
     # Support both form data (from legacy HTML) and query parameters (from new React app)
     if request.method == 'POST':
@@ -419,97 +460,107 @@ def predict():
     else:  # GET request
         shirtno = request.args.get("shirt", "1")
         pantno = request.args.get("pant", "1")
-    
+
     # Load the catalog to access all shirt and pant images
     current_catalog = load_catalog()
-    
+
     # Find the selected shirt and pant from the catalog
     selected_shirt = None
     for shirt in current_catalog['shirts']:
         if shirt['id'] == shirtno:
             selected_shirt = shirt
             break
-    
+
     selected_pant = None
     for pant in current_catalog['pants']:
         if pant['id'] == pantno:
             selected_pant = pant
             break
-    
+
     # If shirt or pant not found, use defaults
     if not selected_shirt:
         selected_shirt = current_catalog['shirts'][0]
     if not selected_pant:
         selected_pant = current_catalog['pants'][0]
-    
+
     # Get paths and prepare for processing
-    shirt_path = os.path.join(app.root_path, selected_shirt['image'].lstrip('/'))
+    shirt_path = os.path.join(
+        app.root_path, selected_shirt['image'].lstrip('/'))
     pant_path = os.path.join(app.root_path, selected_pant['image'].lstrip('/'))
 
     cv2.waitKey(1)
     cap = cv2.VideoCapture(0)
-    
+
     while True:
         # Read the selected shirt
         imgshirt = cv2.imread(shirt_path, 1)  # original img in bgr
         if imgshirt is None:
             print(f"Error: Could not read shirt image at {shirt_path}")
             # Use a default shirt as fallback
-            imgshirt = cv2.imread(os.path.join(app.root_path, 'static/assets/shirt1.png'), 1)
-        
+            imgshirt = cv2.imread(os.path.join(
+                app.root_path, 'static/assets/shirt1.png'), 1)
+
         # Process shirt mask
         shirtgray = cv2.cvtColor(imgshirt, cv2.COLOR_BGR2GRAY)
-        
+
         # Check if it's a custom uploaded shirt
         if 'user-uploads' in shirt_path:
             # Custom uploaded shirts should already have transparency from our processing
             # Check if the image has an alpha channel
             if imgshirt.shape[2] == 4:  # BGRA format
                 # Use alpha channel directly
-                _, orig_masks = cv2.threshold(imgshirt[:,:,3], 127, 255, cv2.THRESH_BINARY)
+                _, orig_masks = cv2.threshold(
+                    imgshirt[:, :, 3], 127, 255, cv2.THRESH_BINARY)
                 orig_masks_inv = cv2.bitwise_not(orig_masks)
             else:
                 # Fall back to regular processing
-                ret, orig_masks = cv2.threshold(shirtgray, 240, 255, cv2.THRESH_BINARY_INV)
+                ret, orig_masks = cv2.threshold(
+                    shirtgray, 240, 255, cv2.THRESH_BINARY_INV)
                 orig_masks_inv = cv2.bitwise_not(orig_masks)
         elif 'shirt51.jpg' in shirt_path:  # Special case for shirt3
-            ret, orig_masks_inv = cv2.threshold(shirtgray, 200, 255, cv2.THRESH_BINARY)
+            ret, orig_masks_inv = cv2.threshold(
+                shirtgray, 200, 255, cv2.THRESH_BINARY)
             orig_masks = cv2.bitwise_not(orig_masks_inv)
         else:
-            ret, orig_masks = cv2.threshold(shirtgray, 0, 255, cv2.THRESH_BINARY)
+            ret, orig_masks = cv2.threshold(
+                shirtgray, 0, 255, cv2.THRESH_BINARY)
             orig_masks_inv = cv2.bitwise_not(orig_masks)
-        
+
         origshirtHeight, origshirtWidth = imgshirt.shape[:2]
-        
+
         # Read the selected pant
         imgpant = cv2.imread(pant_path, 1)
         if imgpant is None:
             print(f"Error: Could not read pant image at {pant_path}")
             # Use a default pant as fallback
-            imgpant = cv2.imread(os.path.join(app.root_path, 'static/assets/pant7.jpg'), 1)
-        
-        imgpant = imgpant[:,:,0:3]
+            imgpant = cv2.imread(os.path.join(
+                app.root_path, 'static/assets/pant7.jpg'), 1)
+
+        imgpant = imgpant[:, :, 0:3]
         pantgray = cv2.cvtColor(imgpant, cv2.COLOR_BGR2GRAY)
-        
+
         # Process pant mask - adjust threshold based on the pant type
         if 'pant7.jpg' in pant_path:  # White pants
-            ret, orig_mask = cv2.threshold(pantgray, 100, 255, cv2.THRESH_BINARY)
+            ret, orig_mask = cv2.threshold(
+                pantgray, 100, 255, cv2.THRESH_BINARY)
         else:  # Default for other pants
-            ret, orig_mask = cv2.threshold(pantgray, 50, 255, cv2.THRESH_BINARY)
-        
+            ret, orig_mask = cv2.threshold(
+                pantgray, 50, 255, cv2.THRESH_BINARY)
+
         # Create inverse mask
         orig_mask_inv = cv2.bitwise_not(orig_mask)
         origpantHeight, origpantWidth = imgpant.shape[:2]
 
-        face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+        face_cascade = cv2.CascadeClassifier(
+            'haarcascade_frontalface_default.xml')
 
         ret, img = cap.read()
-       
+
         height = img.shape[0]
         width = img.shape[1]
         resizewidth = int(width*3/2)
         resizeheight = int(height*3/2)
-        
+
         cv2.namedWindow("img", cv2.WINDOW_NORMAL)
         cv2.resizeWindow("img", (int(width*3/2), int(height*3/2)))
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -517,24 +568,24 @@ def predict():
 
         for (x, y, w, h) in faces:
             cv2.rectangle(img, (x, y), (x+w, y+h), (255, 0, 0), 2)
-            
+
             # Pants processing
             pantWidth = 3 * w
             pantHeight = pantWidth * origpantHeight / origpantWidth
-            
+
             # Default positioning for pants
             x1 = x - w
             x2 = x1 + 3*w
             y1 = y + 5*h
             y2 = y + h*10
-            
+
             # Adjust position for specific pants if needed
             if 'pant21.png' in pant_path:  # Blue pants
                 x1 = x - w/2
                 x2 = x1 + 2*w
                 y1 = y + 4*h
                 y2 = y + h*9
-            
+
             # Boundary checks
             if x1 < 0:
                 x1 = 0
@@ -546,59 +597,65 @@ def predict():
                 y1 = img.shape[0]
             if y1 == y2:
                 y1 = 0
-                
+
             temp = 0
             if y1 > y2:
                 temp = y1
                 y1 = y2
                 y2 = temp
-                
+
             pantWidth = int(abs(x2 - x1))
             pantHeight = int(abs(y2 - y1))
             x1 = int(x1)
             x2 = int(x2)
             y1 = int(y1)
             y2 = int(y2)
-            
-            pant = cv2.resize(imgpant, (pantWidth, pantHeight), interpolation=cv2.INTER_AREA)
-            mask = cv2.resize(orig_mask, (pantWidth, pantHeight), interpolation=cv2.INTER_AREA)
-            mask_inv = cv2.resize(orig_mask_inv, (pantWidth, pantHeight), interpolation=cv2.INTER_AREA)
-            
+
+            pant = cv2.resize(imgpant, (pantWidth, pantHeight),
+                              interpolation=cv2.INTER_AREA)
+            mask = cv2.resize(orig_mask, (pantWidth, pantHeight),
+                              interpolation=cv2.INTER_AREA)
+            mask_inv = cv2.resize(
+                orig_mask_inv, (pantWidth, pantHeight), interpolation=cv2.INTER_AREA)
+
             roi = img[y1:y2, x1:x2]
-            
+
             # Ensure mask_inv is the right size and type
             if mask_inv.shape[:2] != roi.shape[:2]:
-                mask_inv = cv2.resize(mask_inv, (roi.shape[1], roi.shape[0]), interpolation=cv2.INTER_AREA)
+                mask_inv = cv2.resize(
+                    mask_inv, (roi.shape[1], roi.shape[0]), interpolation=cv2.INTER_AREA)
             if len(mask_inv.shape) > 2:
                 mask_inv = cv2.cvtColor(mask_inv, cv2.COLOR_BGR2GRAY)
-                
+
             roi_bg = cv2.bitwise_and(roi, roi, mask=mask_inv)
-                
+
             # Ensure mask is the right size and type
             if mask.shape[:2] != pant.shape[:2]:
-                mask = cv2.resize(mask, (pant.shape[1], pant.shape[0]), interpolation=cv2.INTER_AREA)
+                mask = cv2.resize(
+                    mask, (pant.shape[1], pant.shape[0]), interpolation=cv2.INTER_AREA)
             if len(mask.shape) > 2:
                 mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
-                
+
             roi_fg = cv2.bitwise_and(pant, pant, mask=mask)
-            
+
             # Initialize roi_fgs and roi_bgs
             roi_fgs = roi_fg
             roi_bgs = roi_bg
-            
+
             # Ensure roi_fgs and roi_bgs have the same shape and channels
             if roi_fgs.shape != roi_bgs.shape:
-                roi_fgs = cv2.resize(roi_fgs, (roi_bgs.shape[1], roi_bgs.shape[0]), interpolation=cv2.INTER_AREA)
-                
+                roi_fgs = cv2.resize(
+                    roi_fgs, (roi_bgs.shape[1], roi_bgs.shape[0]), interpolation=cv2.INTER_AREA)
+
             # Make sure they have the same number of channels
             if len(roi_fgs.shape) != len(roi_bgs.shape):
                 if len(roi_fgs.shape) > len(roi_bgs.shape):
                     roi_bgs = cv2.cvtColor(roi_bgs, cv2.COLOR_GRAY2BGR)
                 else:
                     roi_fgs = cv2.cvtColor(roi_fgs, cv2.COLOR_GRAY2BGR)
-                    
+
             dsts = cv2.add(roi_bgs, roi_fgs)
-            
+
             # Apply blur effect to the rest of the image
             top = img[0:y, 0:resizewidth]
             bottom = img[y+h:resizeheight, 0:resizewidth]
@@ -618,12 +675,12 @@ def predict():
             # Shirt processing
             shirtWidth = 3 * w
             shirtHeight = shirtWidth * origshirtHeight / origshirtWidth
-            
+
             x1s = x - w
             x2s = x1s + 3*w
             y1s = y + h
             y2s = y1s + h*4
-            
+
             # Boundary checks
             if x1s < 0:
                 x1s = 0
@@ -631,58 +688,64 @@ def predict():
                 x2s = img.shape[1]
             if y2s > img.shape[0]:
                 y2s = img.shape[0]
-                
+
             temp = 0
             if y1s > y2s:
                 temp = y1s
                 y1s = y2s
                 y2s = temp
-                
+
             shirtWidth = int(abs(x2s - x1s))
             shirtHeight = int(abs(y2s - y1s))
             y1s = int(y1s)
             y2s = int(y2s)
             x1s = int(x1s)
             x2s = int(x2s)
-            
-            shirt = cv2.resize(imgshirt, (shirtWidth, shirtHeight), interpolation=cv2.INTER_AREA)
-            mask = cv2.resize(orig_masks, (shirtWidth, shirtHeight), interpolation=cv2.INTER_AREA)
-            masks_inv = cv2.resize(orig_masks_inv, (shirtWidth, shirtHeight), interpolation=cv2.INTER_AREA)
-            
+
+            shirt = cv2.resize(
+                imgshirt, (shirtWidth, shirtHeight), interpolation=cv2.INTER_AREA)
+            mask = cv2.resize(
+                orig_masks, (shirtWidth, shirtHeight), interpolation=cv2.INTER_AREA)
+            masks_inv = cv2.resize(
+                orig_masks_inv, (shirtWidth, shirtHeight), interpolation=cv2.INTER_AREA)
+
             rois = img[y1s:y2s, x1s:x2s]
-            
+
             # Ensure masks_inv is the right size and type
             if masks_inv.shape[:2] != rois.shape[:2]:
-                masks_inv = cv2.resize(masks_inv, (rois.shape[1], rois.shape[0]), interpolation=cv2.INTER_AREA)
+                masks_inv = cv2.resize(
+                    masks_inv, (rois.shape[1], rois.shape[0]), interpolation=cv2.INTER_AREA)
             if len(masks_inv.shape) > 2:
                 masks_inv = cv2.cvtColor(masks_inv, cv2.COLOR_BGR2GRAY)
-                
+
             roi_bgs = cv2.bitwise_and(rois, rois, mask=masks_inv)
-            
+
             # Ensure mask is the right size and type
             if mask.shape[:2] != shirt.shape[:2]:
-                mask = cv2.resize(mask, (shirt.shape[1], shirt.shape[0]), interpolation=cv2.INTER_AREA)
+                mask = cv2.resize(
+                    mask, (shirt.shape[1], shirt.shape[0]), interpolation=cv2.INTER_AREA)
             if len(mask.shape) > 2:
                 mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
-                
+
             roi_fgs = cv2.bitwise_and(shirt, shirt, mask=mask)
-            
+
             # Ensure roi_fgs and roi_bgs have the same shape and channels
             if roi_fgs.shape != roi_bgs.shape:
-                roi_fgs = cv2.resize(roi_fgs, (roi_bgs.shape[1], roi_bgs.shape[0]), interpolation=cv2.INTER_AREA)
-                
+                roi_fgs = cv2.resize(
+                    roi_fgs, (roi_bgs.shape[1], roi_bgs.shape[0]), interpolation=cv2.INTER_AREA)
+
             # Make sure they have the same number of channels
             if len(roi_fgs.shape) != len(roi_bgs.shape):
                 if len(roi_fgs.shape) > len(roi_bgs.shape):
                     roi_bgs = cv2.cvtColor(roi_bgs, cv2.COLOR_GRAY2BGR)
                 else:
                     roi_fgs = cv2.cvtColor(roi_fgs, cv2.COLOR_GRAY2BGR)
-                    
+
             dsts = cv2.add(roi_bgs, roi_fgs)
             img[y1s:y2s, x1s:x2s] = dsts
-            
+
             break
-            
+
         cv2.imshow("img", img)
         if cv2.waitKey(100) == ord('q'):
             break
@@ -694,50 +757,104 @@ def predict():
     return redirect('/')
 
 # Add API endpoint for compatibility with React frontend
-@app.route('/api/predict', methods=['GET','POST'])
+
+
+@app.route('/api/predict', methods=['GET', 'POST'])
 def api_predict():
     return predict()
 
 # API endpoint for skin tone analysis
+
+
 @app.route('/api/skin-tone-analysis', methods=['POST'])
 def skin_tone_analysis():
     """
-    Analyze skin tone using the SkinToneClassifier library
-    Expects an image file upload named 'image'
+    Analyze skin tone using the SkinToneClassifier library.
+
+    Input options (mutually exclusive):
+    1. JSON body 👉 {"url_image": "http://.../image.jpg"}
+       • The API fará o download da imagem antes de processar.
+    2. multipart/form-data com o campo file "image" (comportamento legado).
     """
     if not SKIN_TONE_AVAILABLE:
         return jsonify({
             'success': False,
             'error': 'SkinToneClassifier library is not installed on the server'
         }), 500
-        
-    if 'image' not in request.files:
-        return jsonify({
-            'success': False,
-            'error': 'No image file provided'
-        }), 400
-        
-    file = request.files['image']
-    if file.filename == '':
-        return jsonify({
-            'success': False,
-            'error': 'No image selected'
-        }), 400
-        
-    if not allowed_file(file.filename):
-        return jsonify({
-            'success': False,
-            'error': 'File type not supported. Please upload JPG, JPEG or PNG'
-        }), 400
-    
-    try:
-        # Save the uploaded file
-        filename = secure_filename(f"{uuid.uuid4()}{os.path.splitext(file.filename)[1]}")
+
+    # --------------------------------------------------
+    # 1) Handle JSON body with an external image URL
+    # --------------------------------------------------
+    tone_category: str = "Medium"  # Default value set early to avoid reference issues
+    filepath: str | None = None
+    if request.is_json:
+        json_payload: dict[str, str] = request.get_json(silent=True) or {}
+        url_image: str | None = json_payload.get(
+            'url_image') if isinstance(json_payload, dict) else None
+
+        if url_image:
+            try:
+                # Faz o download da imagem
+                response = requests.get(url_image, stream=True, timeout=10)
+                if response.status_code != 200:
+                    return jsonify({'success': False, 'error': 'Falha ao baixar a imagem (status HTTP != 200)'}), 400
+
+                # Determina extensão do arquivo (fallback para .jpg se não for possível)
+                parsed_ext = os.path.splitext(
+                    url_image.split('?')[0])[1].lower()
+                if parsed_ext.replace('.', '') not in ALLOWED_EXTENSIONS:
+                    content_type = response.headers.get('Content-Type', '')
+                    if 'png' in content_type:
+                        parsed_ext = '.png'
+                    elif 'jpeg' in content_type or 'jpg' in content_type:
+                        parsed_ext = '.jpg'
+                    else:
+                        return jsonify({'success': False, 'error': 'Extensão não suportada. Apenas JPG, JPEG ou PNG'}), 400
+
+                filename = secure_filename(f"{uuid.uuid4()}{parsed_ext}")
+                filepath = os.path.join(
+                    app.root_path, USER_UPLOADS_DIR, filename)
+
+                # Garante diretório existente e grava o arquivo
+                os.makedirs(os.path.dirname(filepath), exist_ok=True)
+                with open(filepath, 'wb') as f_out:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f_out.write(chunk)
+            except requests.RequestException as req_err:
+                return jsonify({'success': False, 'error': f'Erro ao baixar a imagem: {req_err}'}), 400
+        else:
+            # Nenhuma URL fornecida, continuaremos a verificar upload de arquivo abaixo
+            pass
+
+    # --------------------------------------------------
+    # 2) Handle legacy multipart upload (se URL não foi fornecida)
+    # --------------------------------------------------
+    if filepath is None:
+        if 'image' not in request.files:
+            return jsonify({
+                'success': False,
+                'error': 'No image provided. Expecting JSON with "url_image" or multipart field "image".'
+            }), 400
+
+        file_storage = request.files['image']
+        if file_storage.filename == '':
+            return jsonify({'success': False, 'error': 'No image selected'}), 400
+
+        if not allowed_file(file_storage.filename):
+            return jsonify({
+                'success': False,
+                'error': 'File type not supported. Please upload JPG, JPEG or PNG'
+            }), 400
+
+        filename = secure_filename(
+            f"{uuid.uuid4()}{os.path.splitext(file_storage.filename)[1]}")
         filepath = os.path.join(app.root_path, USER_UPLOADS_DIR, filename)
-        file.save(filepath)
-        
+        file_storage.save(filepath)
+
+    try:
         print(f"Processing image at: {filepath}")
-        
+
         # Process the image with SkinToneClassifier
         try:
             result = SkinToneClassifier.analyze(
@@ -749,8 +866,9 @@ def skin_tone_analysis():
             print("SkinToneClassifier process result:", result)
         except Exception as process_error:
             print(f"Error in SkinToneClassifier: {str(process_error)}")
-            raise Exception(f"SkinToneClassifier processing error: {str(process_error)}")
-        
+            raise Exception(
+                f"SkinToneClassifier processing error: {str(process_error)}")
+
         # If no faces were detected
         if 'faces' not in result:
             print("No 'faces' key in result:", result)
@@ -758,17 +876,17 @@ def skin_tone_analysis():
                 'success': False,
                 'error': 'Invalid image format or processing error. Please try a different image.'
             }), 400
-            
+
         if not result['faces']:
             print("Empty 'faces' array in result:", result)
             return jsonify({
                 'success': False,
                 'error': 'No face detected in the image. Please upload a clear face photo with good lighting.'
             }), 400
-            
+
         # Get the first face result (most prominent face)
         face = result['faces'][0]
-        
+
         # Extract colors from the face result
         # Based on the logs, dominant_colors is an array of objects with 'color' and 'percent' properties
         dominant_colors = []
@@ -777,33 +895,36 @@ def skin_tone_analysis():
                 for color_obj in face['dominant_colors']:
                     if 'color' in color_obj:
                         dominant_colors.append(color_obj['color'])
-                
+
             # If we don't have enough colors, add defaults
             while len(dominant_colors) < 3:
                 dominant_colors.append('#E6B76D')
         except Exception as color_error:
             print(f"Error extracting dominant colors: {str(color_error)}")
-            dominant_colors = ['#E6B76D', '#D99559', '#C27A46']  # Default fallback
-        
+            dominant_colors = ['#E6B76D', '#D99559',
+                               '#C27A46']  # Default fallback
+
         # Save the report image if available
         report_image_url = None
         if 'report_images' in result and result['report_images']:
             try:
                 report_filename = f"report_{filename}"
-                report_filepath = os.path.join(app.root_path, 'static', 'reports', report_filename)
+                report_filepath = os.path.join(
+                    app.root_path, 'static', 'reports', report_filename)
                 os.makedirs(os.path.dirname(report_filepath), exist_ok=True)
-                
+
                 print(f"Report images found: {type(result['report_images'])}")
                 print(f"Report images content: {result['report_images']}")
-                
+
                 # Handle if report_images is a dictionary (as shown in the logs)
                 if isinstance(result['report_images'], dict):
                     report_image = next(iter(result['report_images'].values()))
-                    print(f"Using first image from dictionary: {type(report_image)}")
+                    print(
+                        f"Using first image from dictionary: {type(report_image)}")
                 else:
                     report_image = result['report_images'][0]
                     print(f"Using first image from list: {type(report_image)}")
-                    
+
                 cv2.imwrite(report_filepath, report_image)
                 print(f"Report image saved to: {report_filepath}")
                 report_image_url = f"/static/reports/{report_filename}"
@@ -813,30 +934,34 @@ def skin_tone_analysis():
                 # Create a basic report image as fallback
                 try:
                     # Create a simple report image with skin tone information
-                    fallback_report = np.ones((400, 600, 3), dtype=np.uint8) * 255  # White background
-                    
+                    fallback_report = np.ones(
+                        (400, 600, 3), dtype=np.uint8) * 255  # White background
+
                     # Add skin tone information
-                    cv2.putText(fallback_report, f"Skin Tone: {tone_category}", (50, 50), 
-                               cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
-                    
+                    cv2.putText(fallback_report, f"Skin Tone: {tone_category}", (50, 50),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
+
                     # Add color boxes for dominant colors
                     for i, color in enumerate(dominant_colors[:3]):
                         # Convert hex to RGB
                         r = int(color[1:3], 16)
                         g = int(color[3:5], 16)
                         b = int(color[5:7], 16)
-                        
+
                         # Draw colored rectangle
-                        cv2.rectangle(fallback_report, (50 + i*100, 100), (130 + i*100, 180), (b, g, r), -1)
-                        
+                        cv2.rectangle(fallback_report, (50 + i*100, 100),
+                                      (130 + i*100, 180), (b, g, r), -1)
+
                     report_filename = f"fallback_report_{filename}"
-                    report_filepath = os.path.join(app.root_path, 'static', 'reports', report_filename)
+                    report_filepath = os.path.join(
+                        app.root_path, 'static', 'reports', report_filename)
                     cv2.imwrite(report_filepath, fallback_report)
                     report_image_url = f"/static/reports/{report_filename}"
                     print(f"Created fallback report image: {report_image_url}")
                 except Exception as fallback_error:
-                    print(f"Error creating fallback report: {str(fallback_error)}")
-        
+                    print(
+                        f"Error creating fallback report: {str(fallback_error)}")
+
         # Map skin tones to seasonal color recommendations
         seasonal_colors = {
             'Very Light': {
@@ -875,11 +1000,11 @@ def skin_tone_analysis():
                 'description': 'Your skin has cool undertones with very dark depth. Colors that complement your tone include bold purples, rich reds, and deep blues. Analysis powered by SkinToneClassifier AI technology.'
             }
         }
-        
+
         # Determine tone category based on skin tone value
         # We're going to use a simpler approach based on the actual data in the logs
         tone_category = 'Medium'  # Default
-        
+
         try:
             # Try to use the skin_tone hex value to determine the brightness/category
             if 'skin_tone' in face:
@@ -888,10 +1013,10 @@ def skin_tone_analysis():
                 r = int(skin_tone_hex[1:3], 16)
                 g = int(skin_tone_hex[3:5], 16)
                 b = int(skin_tone_hex[5:7], 16)
-                
+
                 # Simple brightness formula (0-255)
                 brightness = (r + g + b) / 3
-                
+
                 # Map brightness to tone categories
                 if brightness > 220:
                     tone_category = 'Very Light'
@@ -907,14 +1032,16 @@ def skin_tone_analysis():
                     tone_category = 'Dark'
                 else:
                     tone_category = 'Very Dark'
-                    
-                print(f"Mapped skin tone {skin_tone_hex} with brightness {brightness} to category: {tone_category}")
+
+                print(
+                    f"Mapped skin tone {skin_tone_hex} with brightness {brightness} to category: {tone_category}")
         except Exception as mapping_error:
             print(f"Error determining tone category: {str(mapping_error)}")
-        
+
         # Get the seasonal color recommendations
-        season_data = seasonal_colors.get(tone_category, seasonal_colors['Medium'])
-        
+        season_data = seasonal_colors.get(
+            tone_category, seasonal_colors['Medium'])
+
         # Return results
         return jsonify({
             'success': True,
@@ -925,10 +1052,10 @@ def skin_tone_analysis():
             'recommendedColors': season_data['colors'],
             'reportImage': report_image_url
         })
-        
+
     except Exception as e:
         print(f"Error in skin tone analysis: {str(e)}")
-        
+
         # Provide fallback results in case of error
         fallback_data = {
             'success': True,  # Still return success to show something to the user
@@ -937,9 +1064,10 @@ def skin_tone_analysis():
             'colors': ['#E6B76D', '#D99559', '#C27A46'],
             'description': 'Analysis based on fallback data. Your skin appears to have warm undertones with medium depth. Colors that complement warm medium tones include earth tones, warm greens, and coral shades. Analysis powered by SkinToneClassifier AI technology.',
             'recommendedColors': ['#8B5A2B', '#F4A460', '#CD853F', '#006400', '#FF7F50'],
-            'reportImage': '/static/assets/fallback_report.jpg'  # Provide a fallback report image
+            # Provide a fallback report image
+            'reportImage': '/static/assets/fallback_report.jpg'
         }
-        
+
         return jsonify(fallback_data)
     finally:
         # Clean up the uploaded file
@@ -948,6 +1076,7 @@ def skin_tone_analysis():
                 os.remove(filepath)
             except:
                 pass
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True, port=5000)
