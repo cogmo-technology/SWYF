@@ -2,44 +2,44 @@ from flask import Flask, render_template, request, send_from_directory, jsonify,
 import json
 from flask_cors import CORS
 import numpy as np
-import cv2                              # Library for image processing
+import cv2                              # Biblioteca para processamento de imagens
 from math import floor
 import os
 import uuid
 from werkzeug.utils import secure_filename
 import base64
 from datetime import datetime
-import random  # For simulating blockchain and rewards data
-import requests  # For downloading images supplied via URL
+import random  # Para simular dados de blockchain e recompensas
+import requests  # Para baixar imagens fornecidas via URL
 
-# Import SkinToneClassifier
+# Importar SkinToneClassifier
 try:
     from skin_tone_classifier import SkinToneClassifier
-    print("Successfully imported local SkinToneClassifier")
+    print("SkinToneClassifier local importado com sucesso")
     SKIN_TONE_AVAILABLE = True
 except ImportError as e:
-    print(f"Import error: {str(e)}")
+    print(f"Erro de importação: {str(e)}")
     SKIN_TONE_AVAILABLE = False
-    print("SkinToneClassifier not available. Install with: pip install skin-tone-classifier")
+    print("SkinToneClassifier não disponível. Instale com: pip install skin-tone-classifier")
 
 app = Flask(__name__)
-# Enable CORS for all routes and origins
+# Habilitar CORS para todas as rotas e origens
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-# Path to React app build directory
+# Caminho para o diretório de build do app React
 REACT_APP_BUILD_DIR = os.path.join('static', 'react-app')
 
-# Path for user uploads
+# Caminho para uploads de usuários
 USER_UPLOADS_DIR = os.path.join('static', 'user-uploads')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
-# Path for catalog data
+# Caminho para dados do catálogo
 CATALOG_FILE = os.path.join('static', 'catalog.json')
 
-# Create user uploads directory if it doesn't exist
+# Criar diretório de uploads de usuários se não existir
 os.makedirs(os.path.join(app.root_path, USER_UPLOADS_DIR), exist_ok=True)
 
-# Simulated blockchain and rewards data
+# Dados simulados de blockchain e recompensas
 BLOCKCHAIN_DATA = {
     'transactions': 0,
     'active_nodes': 120,
@@ -52,15 +52,15 @@ REWARDS_DATA = {
     'progress': 65,
     'achievements': [
         {
-            'title': 'Fashion Explorer',
-            'description': 'Try on 10 different items',
+            'title': 'Explorador da Moda',
+            'description': 'Experimente 10 itens diferentes',
             'progress': 7,
             'total': 10,
             'reward': 50
         },
         {
-            'title': 'Social Butterfly',
-            'description': 'Share 5 try-on results',
+            'title': 'Borboleta Social',
+            'description': 'Compartilhe 5 resultados de prova',
             'progress': 3,
             'total': 5,
             'reward': 30
@@ -68,36 +68,36 @@ REWARDS_DATA = {
     ]
 }
 
-# Demo try-on images for different combinations
+# Imagens de demonstração de prova para diferentes combinações
 DEMO_IMAGES = {
-    '1_1': '/static/assets/bg1.jpg',  # Blue tshirt + white pant
-    '2_1': '/static/assets/bg.jpg',   # Blue shirt + white pant
-    '3_2': '/static/assets/background.jpg',  # Black tshirt + blue pant
-    '4_2': '/static/assets/bg.jpeg',  # Grey tshirt + blue pant
-    'default': '/static/assets/leftimage-removebg-preview.png'  # Default image
+    '1_1': '/static/assets/bg1.jpg',  # Camiseta azul + calça branca
+    '2_1': '/static/assets/bg.jpg',   # Camisa azul + calça branca
+    '3_2': '/static/assets/background.jpg',  # Camiseta preta + calça azul
+    '4_2': '/static/assets/bg.jpeg',  # Camiseta cinza + calça azul
+    'default': '/static/assets/leftimage-removebg-preview.png'  # Imagem padrão
 }
 
-# Default catalog items
+# Itens padrão do catálogo
 default_catalog = {
     'shirts': [
-        {'id': '1', 'name': 'Blue T-shirt',
+        {'id': '1', 'name': 'Camiseta Azul',
             'image': '/static/assets/shirt1.png', 'type': 'default'},
-        {'id': '2', 'name': 'Blue Shirt',
+        {'id': '2', 'name': 'Camisa Azul',
             'image': '/static/assets/shirt2.png', 'type': 'default'},
-        {'id': '3', 'name': 'Black T-shirt',
+        {'id': '3', 'name': 'Camiseta Preta',
             'image': '/static/assets/shirt51.jpg', 'type': 'default'},
-        {'id': '4', 'name': 'Grey T-shirt',
+        {'id': '4', 'name': 'Camiseta Cinza',
             'image': '/static/assets/shirt6.png', 'type': 'default'}
     ],
     'pants': [
-        {'id': '1', 'name': 'White Pants',
+        {'id': '1', 'name': 'Calça Branca',
             'image': '/static/assets/pant7.jpg', 'type': 'default'},
-        {'id': '2', 'name': 'Blue Pants',
+        {'id': '2', 'name': 'Calça Azul',
             'image': '/static/assets/pant21.png', 'type': 'default'}
     ]
 }
 
-# Load catalog from file or use default
+# Carregar catálogo do arquivo ou usar padrão
 
 
 def load_catalog():
@@ -107,10 +107,10 @@ def load_catalog():
                 return json.load(f)
         return default_catalog
     except Exception as e:
-        print(f"Error loading catalog: {str(e)}")
+        print(f"Erro ao carregar catálogo: {str(e)}")
         return default_catalog
 
-# Save catalog to file
+# Salvar catálogo no arquivo
 
 
 def save_catalog(catalog_data):
@@ -118,10 +118,10 @@ def save_catalog(catalog_data):
         with open(os.path.join(app.root_path, CATALOG_FILE), 'w') as f:
             json.dump(catalog_data, f, indent=4)
     except Exception as e:
-        print(f"Error saving catalog: {str(e)}")
+        print(f"Erro ao salvar catálogo: {str(e)}")
 
 
-# Initialize catalog
+# Inicializar catálogo
 catalog = load_catalog()
 
 
@@ -131,102 +131,102 @@ def allowed_file(filename):
 
 def remove_background(input_path, output_path):
     """
-    Remove background from an image and save with transparent background
-    Using improved techniques for better results with custom uploads
+    Remove o fundo de uma imagem e salva com fundo transparente
+    Usando técnicas melhoradas para melhores resultados com uploads personalizados
     """
     try:
-        # Read the image
+        # Ler a imagem
         img = cv2.imread(input_path)
         if img is None:
-            print(f"Error: Could not read image at {input_path}")
+            print(f"Erro: Não foi possível ler a imagem em {input_path}")
             return False
 
-        # Convert to RGB for processing
+        # Converter para RGB para processamento
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-        # Create a mask with multiple methods and combine them
-        # Method 1: Simple thresholding on grayscale
+        # Criar uma máscara com múltiplos métodos e combiná-los
+        # Método 1: Limiarização simples em tons de cinza
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         _, thresh1 = cv2.threshold(gray, 240, 255, cv2.THRESH_BINARY_INV)
 
-        # Method 2: Color-based segmentation
-        # Convert to HSV color space
+        # Método 2: Segmentação baseada em cor
+        # Converter para espaço de cor HSV
         img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-        # Define range for background colors (assuming white/light background)
+        # Definir faixa para cores de fundo (assumindo fundo branco/claro)
         lower_white = np.array([0, 0, 180])
         upper_white = np.array([180, 30, 255])
 
-        # Create mask for white/light background
+        # Criar máscara para fundo branco/claro
         thresh2 = cv2.inRange(img_hsv, lower_white, upper_white)
         thresh2 = cv2.bitwise_not(thresh2)
 
-        # Method 3: Adaptive thresholding for better handling of dark items
+        # Método 3: Limiarização adaptativa para melhor manuseio de itens escuros
         adaptive_thresh = cv2.adaptiveThreshold(
             gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2
         )
 
-        # Combine masks
+        # Combinar máscaras
         combined_mask = cv2.bitwise_or(thresh1, thresh2)
         combined_mask = cv2.bitwise_or(combined_mask, adaptive_thresh)
 
-        # Apply morphological operations to improve the mask
+        # Aplicar operações morfológicas para melhorar a máscara
         kernel = np.ones((5, 5), np.uint8)
         combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, kernel)
         combined_mask = cv2.morphologyEx(
             combined_mask, cv2.MORPH_CLOSE, kernel)
 
-        # Find the largest contour (assumed to be the clothing item)
+        # Encontrar o maior contorno (assumido como sendo o item de roupa)
         contours, _ = cv2.findContours(
             combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        # If contours found, use the largest one
+        # Se contornos foram encontrados, usar o maior
         if contours:
-            # Create a new mask with only the largest contour
+            # Criar uma nova máscara com apenas o maior contorno
             refined_mask = np.zeros_like(combined_mask)
             largest_contour = max(contours, key=cv2.contourArea)
             cv2.drawContours(refined_mask, [largest_contour], 0, 255, -1)
 
-            # Fill holes in the contour
-            # First invert the mask to make holes white
+            # Preencher buracos no contorno
+            # Primeiro inverter a máscara para tornar os buracos brancos
             mask_inv = cv2.bitwise_not(refined_mask)
-            # Find all contours in the inverted mask
+            # Encontrar todos os contornos na máscara invertida
             hole_contours, _ = cv2.findContours(
                 mask_inv, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            # Fill all but the largest contour (which is the outer boundary)
+            # Preencher todos exceto o maior contorno (que é o limite externo)
             for contour in hole_contours:
                 if cv2.contourArea(contour) < cv2.contourArea(largest_contour):
                     cv2.drawContours(refined_mask, [contour], 0, 255, -1)
 
-            # Dilate to ensure we don't crop the clothing too tightly
+            # Dilatar para garantir que não cortemos a roupa muito apertado
             refined_mask = cv2.dilate(refined_mask, kernel, iterations=2)
         else:
             refined_mask = combined_mask
 
-        # Final cleanup
+        # Limpeza final
         refined_mask = cv2.GaussianBlur(refined_mask, (5, 5), 0)
         _, refined_mask = cv2.threshold(
             refined_mask, 127, 255, cv2.THRESH_BINARY)
 
-        # Create alpha channel from mask
+        # Criar canal alfa da máscara
         alpha = refined_mask
 
-        # Convert image to BGRA (add alpha channel)
+        # Converter imagem para BGRA (adicionar canal alfa)
         bgra = cv2.cvtColor(img, cv2.COLOR_BGR2BGRA)
 
-        # Set alpha channel in BGRA image
+        # Definir canal alfa na imagem BGRA
         bgra[:, :, 3] = alpha
 
-        # Save the image with transparency
+        # Salvar a imagem com transparência
         cv2.imwrite(output_path, bgra)
 
-        # Verification check
+        # Verificação de confirmação
         result = cv2.imread(output_path, cv2.IMREAD_UNCHANGED)
-        # Check if alpha channel exists
+        # Verificar se o canal alfa existe
         if result is None or result.shape[2] < 4:
             print(
-                f"Warning: Failed to create transparent image. Saving with fallback method.")
-            # Fallback method: just save the original with very basic background removal
+                f"Aviso: Falha ao criar imagem transparente. Salvando com método de fallback.")
+            # Método de fallback: apenas salvar o original com remoção básica de fundo
             _, simple_mask = cv2.threshold(
                 gray, 250, 255, cv2.THRESH_BINARY_INV)
             bgra[:, :, 3] = simple_mask
@@ -234,10 +234,10 @@ def remove_background(input_path, output_path):
 
         return True
     except Exception as e:
-        print(f"Error removing background: {str(e)}")
+        print(f"Erro ao remover fundo: {str(e)}")
         return False
 
-# Serve React App
+# Servir App React
 
 
 @app.route('/', defaults={'path': ''})
@@ -248,20 +248,20 @@ def serve_react_app(path):
     else:
         return send_from_directory(os.path.join(app.static_folder, 'react-app'), 'index.html')
 
-# Add explicit route to serve static assets
+# Adicionar rota explícita para servir assets estáticos
 
 
 @app.route('/static/assets/<path:filename>')
 def serve_static_assets(filename):
     response = send_from_directory(os.path.join(
         app.static_folder, 'assets'), filename)
-    # Set Cache-Control header to prevent caching issues
+    # Definir cabeçalho Cache-Control para prevenir problemas de cache
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'
     return response
 
-# New API endpoint for rewards system
+# Novo endpoint da API para sistema de recompensas
 
 
 @app.route('/api/rewards/status', methods=['GET'])
@@ -271,7 +271,7 @@ def rewards_status():
         'data': REWARDS_DATA
     })
 
-# New API endpoint to update rewards
+# Novo endpoint da API para atualizar recompensas
 
 
 @app.route('/api/rewards/update', methods=['POST'])
@@ -282,20 +282,20 @@ def update_rewards():
 
         if action == 'try_on':
             REWARDS_DATA['tokens'] += 5
-            # Update achievement progress
+            # Atualizar progresso da conquista
             for achievement in REWARDS_DATA['achievements']:
-                if achievement['title'] == 'Fashion Explorer':
+                if achievement['title'] == 'Explorador da Moda':
                     if achievement['progress'] < achievement['total']:
                         achievement['progress'] += 1
         elif action == 'share':
             REWARDS_DATA['tokens'] += 10
-            # Update achievement progress
+            # Atualizar progresso da conquista
             for achievement in REWARDS_DATA['achievements']:
-                if achievement['title'] == 'Social Butterfly':
+                if achievement['title'] == 'Borboleta Social':
                     if achievement['progress'] < achievement['total']:
                         achievement['progress'] += 1
 
-        # Update level progress
+        # Atualizar progresso do nível
         REWARDS_DATA['progress'] = min(
             100, REWARDS_DATA['progress'] + random.randint(1, 5))
         if REWARDS_DATA['progress'] >= 100:
@@ -312,7 +312,7 @@ def update_rewards():
             'error': str(e)
         })
 
-# Enhanced try-on API with rewards integration
+# API de prova melhorada com integração de recompensas
 
 
 @app.route('/api/tryon', methods=['POST'])
@@ -322,29 +322,29 @@ def tryon_api():
         shirt_id = data.get('shirt', '0')
         pant_id = data.get('pant', '0')
 
-        # Always use camera mode, ignoring the use_camera flag
-        # Redirect to the camera-based try-on experience
+        # Sempre usar modo câmera, ignorando a flag use_camera
+        # Redirecionar para a experiência de prova baseada em câmera
         return jsonify({
             'success': True,
             'redirect': True,
             'url': f'/api/predict?shirt={shirt_id}&pant={pant_id}'
         })
 
-        # The code below will never be reached since we're always redirecting
-        # For demo purposes, return a static image based on the selection
+        # O código abaixo nunca será executado já que estamos sempre redirecionando
+        # Para fins de demonstração, retornar uma imagem estática baseada na seleção
         image_key = f"{shirt_id}_{pant_id}"
         image_url = DEMO_IMAGES.get(image_key, DEMO_IMAGES['default'])
 
-        # Update rewards for try-on action
+        # Atualizar recompensas para ação de prova
         update_rewards({'action': 'try_on'})
 
-        # Simulate processing time
+        # Simular tempo de processamento
         import time
         time.sleep(1)
 
         result = {
             'success': True,
-            'message': f'Try-on successful with shirt {shirt_id} and pant {pant_id}',
+            'message': f'Prova realizada com sucesso com camisa {shirt_id} e calça {pant_id}',
             'image_url': image_url,
             'rewards': {
                 'tokens_earned': 5,
@@ -355,16 +355,16 @@ def tryon_api():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-# API endpoint for catalog
+# Endpoint da API para catálogo
 
 
 @app.route('/api/catalog', methods=['GET'])
 def get_catalog():
     global catalog
-    catalog = load_catalog()  # Reload catalog on each request to ensure freshness
+    catalog = load_catalog()  # Recarregar catálogo a cada requisição para garantir frescor
     return jsonify(catalog)
 
-# API endpoint to upload new clothing items
+# Endpoint da API para upload de novos itens de roupa
 
 
 @app.route('/api/catalog/upload', methods=['POST'])
@@ -372,47 +372,47 @@ def upload_item():
     global catalog
 
     if 'file' not in request.files:
-        return jsonify({'success': False, 'error': 'No file part'})
+        return jsonify({'success': False, 'error': 'Nenhum arquivo enviado'})
 
     file = request.files['file']
     item_type = request.form.get('type', 'shirt')
-    name = request.form.get('name', f'Custom {item_type.capitalize()}')
+    name = request.form.get('name', f'{item_type.capitalize()} Personalizada')
 
     if file.filename == '':
-        return jsonify({'success': False, 'error': 'No selected file'})
+        return jsonify({'success': False, 'error': 'Nenhum arquivo selecionado'})
 
     if file and allowed_file(file.filename):
         try:
-            # Generate unique filename
+            # Gerar nome de arquivo único
             filename = secure_filename(file.filename)
             unique_id = str(uuid.uuid4())
             file_ext = os.path.splitext(filename)[1]
             new_filename = f"{item_type}_{unique_id}{file_ext}"
 
-            # Create directories if they don't exist
+            # Criar diretórios se não existirem
             os.makedirs(os.path.join(app.root_path,
                         USER_UPLOADS_DIR), exist_ok=True)
 
-            # Save original file
+            # Salvar arquivo original
             original_path = os.path.join(
                 app.root_path, USER_UPLOADS_DIR, f"original_{new_filename}")
             file.save(original_path)
 
-            # Process image to remove background
+            # Processar imagem para remover fundo
             processed_filename = f"processed_{new_filename}"
             processed_path = os.path.join(
                 app.root_path, USER_UPLOADS_DIR, processed_filename)
 
-            print(f"Processing image: {original_path} -> {processed_path}")
+            print(f"Processando imagem: {original_path} -> {processed_path}")
             success = remove_background(original_path, processed_path)
 
             if not success:
                 return jsonify({
                     'success': False,
-                    'error': 'Failed to process image. Please ensure the image has good contrast with its background.'
+                    'error': 'Falha ao processar imagem. Por favor, certifique-se de que a imagem tenha bom contraste com o fundo.'
                 })
 
-            # Add to catalog
+            # Adicionar ao catálogo
             current_catalog = load_catalog()
 
             if item_type == 'shirt':
@@ -438,33 +438,33 @@ def upload_item():
 
             return jsonify({
                 'success': True,
-                'message': f'{item_type.capitalize()} uploaded and processed successfully',
+                'message': f'{item_type.capitalize()} enviada e processada com sucesso',
                 'item': item
             })
         except Exception as e:
-            print(f"Error in upload process: {str(e)}")
+            print(f"Erro no processo de upload: {str(e)}")
             return jsonify({
                 'success': False,
-                'error': f'An error occurred while processing your upload: {str(e)}'
+                'error': f'Ocorreu um erro ao processar seu upload: {str(e)}'
             })
 
-    return jsonify({'success': False, 'error': 'File type not allowed. Please upload a JPG, JPEG, or PNG image.'})
+    return jsonify({'success': False, 'error': 'Tipo de arquivo não permitido. Por favor, envie uma imagem JPG, JPEG ou PNG.'})
 
 
 @app.route('/predict', methods=['GET', 'POST'])
 def predict():
-    # Support both form data (from legacy HTML) and query parameters (from new React app)
+    # Suportar tanto dados de formulário (do HTML legado) quanto parâmetros de consulta (do novo app React)
     if request.method == 'POST':
         shirtno = request.form["shirt"]
         pantno = request.form["pant"]
-    else:  # GET request
+    else:  # Requisição GET
         shirtno = request.args.get("shirt", "1")
         pantno = request.args.get("pant", "1")
 
-    # Load the catalog to access all shirt and pant images
+    # Carregar o catálogo para acessar todas as imagens de camisas e calças
     current_catalog = load_catalog()
 
-    # Find the selected shirt and pant from the catalog
+    # Encontrar a camisa e calça selecionadas do catálogo
     selected_shirt = None
     for shirt in current_catalog['shirts']:
         if shirt['id'] == shirtno:
@@ -477,13 +477,13 @@ def predict():
             selected_pant = pant
             break
 
-    # If shirt or pant not found, use defaults
+    # Se camisa ou calça não forem encontradas, usar padrões
     if not selected_shirt:
         selected_shirt = current_catalog['shirts'][0]
     if not selected_pant:
         selected_pant = current_catalog['pants'][0]
 
-    # Get paths and prepare for processing
+    # Obter caminhos e preparar para processamento
     shirt_path = os.path.join(
         app.root_path, selected_shirt['image'].lstrip('/'))
     pant_path = os.path.join(app.root_path, selected_pant['image'].lstrip('/'))
@@ -492,32 +492,32 @@ def predict():
     cap = cv2.VideoCapture(0)
 
     while True:
-        # Read the selected shirt
-        imgshirt = cv2.imread(shirt_path, 1)  # original img in bgr
+        # Ler a camisa selecionada
+        imgshirt = cv2.imread(shirt_path, 1)  # imagem original em bgr
         if imgshirt is None:
-            print(f"Error: Could not read shirt image at {shirt_path}")
-            # Use a default shirt as fallback
+            print(f"Erro: Não foi possível ler a imagem da camisa em {shirt_path}")
+            # Usar uma camisa padrão como fallback
             imgshirt = cv2.imread(os.path.join(
                 app.root_path, 'static/assets/shirt1.png'), 1)
 
-        # Process shirt mask
+        # Processar máscara da camisa
         shirtgray = cv2.cvtColor(imgshirt, cv2.COLOR_BGR2GRAY)
 
-        # Check if it's a custom uploaded shirt
+        # Verificar se é uma camisa personalizada enviada
         if 'user-uploads' in shirt_path:
-            # Custom uploaded shirts should already have transparency from our processing
-            # Check if the image has an alpha channel
-            if imgshirt.shape[2] == 4:  # BGRA format
-                # Use alpha channel directly
+            # Camisas personalizadas enviadas já devem ter transparência do nosso processamento
+            # Verificar se a imagem tem um canal alfa
+            if imgshirt.shape[2] == 4:  # formato BGRA
+                # Usar canal alfa diretamente
                 _, orig_masks = cv2.threshold(
                     imgshirt[:, :, 3], 127, 255, cv2.THRESH_BINARY)
                 orig_masks_inv = cv2.bitwise_not(orig_masks)
             else:
-                # Fall back to regular processing
+                # Voltar ao processamento regular
                 ret, orig_masks = cv2.threshold(
                     shirtgray, 240, 255, cv2.THRESH_BINARY_INV)
                 orig_masks_inv = cv2.bitwise_not(orig_masks)
-        elif 'shirt51.jpg' in shirt_path:  # Special case for shirt3
+        elif 'shirt51.jpg' in shirt_path:  # Caso especial para shirt3
             ret, orig_masks_inv = cv2.threshold(
                 shirtgray, 200, 255, cv2.THRESH_BINARY)
             orig_masks = cv2.bitwise_not(orig_masks_inv)
@@ -528,26 +528,26 @@ def predict():
 
         origshirtHeight, origshirtWidth = imgshirt.shape[:2]
 
-        # Read the selected pant
+        # Ler a calça selecionada
         imgpant = cv2.imread(pant_path, 1)
         if imgpant is None:
-            print(f"Error: Could not read pant image at {pant_path}")
-            # Use a default pant as fallback
+            print(f"Erro: Não foi possível ler a imagem da calça em {pant_path}")
+            # Usar uma calça padrão como fallback
             imgpant = cv2.imread(os.path.join(
                 app.root_path, 'static/assets/pant7.jpg'), 1)
 
         imgpant = imgpant[:, :, 0:3]
         pantgray = cv2.cvtColor(imgpant, cv2.COLOR_BGR2GRAY)
 
-        # Process pant mask - adjust threshold based on the pant type
-        if 'pant7.jpg' in pant_path:  # White pants
+        # Processar máscara da calça - ajustar limiar baseado no tipo de calça
+        if 'pant7.jpg' in pant_path:  # Calças brancas
             ret, orig_mask = cv2.threshold(
                 pantgray, 100, 255, cv2.THRESH_BINARY)
-        else:  # Default for other pants
+        else:  # Padrão para outras calças
             ret, orig_mask = cv2.threshold(
                 pantgray, 50, 255, cv2.THRESH_BINARY)
 
-        # Create inverse mask
+        # Criar máscara inversa
         orig_mask_inv = cv2.bitwise_not(orig_mask)
         origpantHeight, origpantWidth = imgpant.shape[:2]
 
@@ -569,24 +569,24 @@ def predict():
         for (x, y, w, h) in faces:
             cv2.rectangle(img, (x, y), (x+w, y+h), (255, 0, 0), 2)
 
-            # Pants processing
+            # Processamento das calças
             pantWidth = 3 * w
             pantHeight = pantWidth * origpantHeight / origpantWidth
 
-            # Default positioning for pants
+            # Posicionamento padrão para calças
             x1 = x - w
             x2 = x1 + 3*w
             y1 = y + 5*h
             y2 = y + h*10
 
-            # Adjust position for specific pants if needed
-            if 'pant21.png' in pant_path:  # Blue pants
+            # Ajustar posição para calças específicas se necessário
+            if 'pant21.png' in pant_path:  # Calças azuis
                 x1 = x - w/2
                 x2 = x1 + 2*w
                 y1 = y + 4*h
                 y2 = y + h*9
 
-            # Boundary checks
+            # Verificações de limites
             if x1 < 0:
                 x1 = 0
             if x2 > img.shape[1]:
@@ -620,7 +620,7 @@ def predict():
 
             roi = img[y1:y2, x1:x2]
 
-            # Ensure mask_inv is the right size and type
+            # Garantir que mask_inv tenha o tamanho e tipo corretos
             if mask_inv.shape[:2] != roi.shape[:2]:
                 mask_inv = cv2.resize(
                     mask_inv, (roi.shape[1], roi.shape[0]), interpolation=cv2.INTER_AREA)
@@ -629,7 +629,7 @@ def predict():
 
             roi_bg = cv2.bitwise_and(roi, roi, mask=mask_inv)
 
-            # Ensure mask is the right size and type
+            # Garantir que mask tenha o tamanho e tipo corretos
             if mask.shape[:2] != pant.shape[:2]:
                 mask = cv2.resize(
                     mask, (pant.shape[1], pant.shape[0]), interpolation=cv2.INTER_AREA)
@@ -638,16 +638,16 @@ def predict():
 
             roi_fg = cv2.bitwise_and(pant, pant, mask=mask)
 
-            # Initialize roi_fgs and roi_bgs
+            # Inicializar roi_fgs e roi_bgs
             roi_fgs = roi_fg
             roi_bgs = roi_bg
 
-            # Ensure roi_fgs and roi_bgs have the same shape and channels
+            # Garantir que roi_fgs e roi_bgs tenham a mesma forma e canais
             if roi_fgs.shape != roi_bgs.shape:
                 roi_fgs = cv2.resize(
                     roi_fgs, (roi_bgs.shape[1], roi_bgs.shape[0]), interpolation=cv2.INTER_AREA)
 
-            # Make sure they have the same number of channels
+            # Certificar-se de que tenham o mesmo número de canais
             if len(roi_fgs.shape) != len(roi_bgs.shape):
                 if len(roi_fgs.shape) > len(roi_bgs.shape):
                     roi_bgs = cv2.cvtColor(roi_bgs, cv2.COLOR_GRAY2BGR)
@@ -656,7 +656,7 @@ def predict():
 
             dsts = cv2.add(roi_bgs, roi_fgs)
 
-            # Apply blur effect to the rest of the image
+            # Aplicar efeito de desfoque ao resto da imagem
             top = img[0:y, 0:resizewidth]
             bottom = img[y+h:resizeheight, 0:resizewidth]
             midleft = img[y:y+h, 0:x]
@@ -672,7 +672,7 @@ def predict():
             img[y:y+h, x+w:resizewidth] = midright
             img[y1:y2, x1:x2] = dsts
 
-            # Shirt processing
+            # Processamento da camisa
             shirtWidth = 3 * w
             shirtHeight = shirtWidth * origshirtHeight / origshirtWidth
 
@@ -681,7 +681,7 @@ def predict():
             y1s = y + h
             y2s = y1s + h*4
 
-            # Boundary checks
+            # Verificações de limites
             if x1s < 0:
                 x1s = 0
             if x2s > img.shape[1]:
@@ -711,7 +711,7 @@ def predict():
 
             rois = img[y1s:y2s, x1s:x2s]
 
-            # Ensure masks_inv is the right size and type
+            # Garantir que masks_inv tenha o tamanho e tipo corretos
             if masks_inv.shape[:2] != rois.shape[:2]:
                 masks_inv = cv2.resize(
                     masks_inv, (rois.shape[1], rois.shape[0]), interpolation=cv2.INTER_AREA)
@@ -720,7 +720,7 @@ def predict():
 
             roi_bgs = cv2.bitwise_and(rois, rois, mask=masks_inv)
 
-            # Ensure mask is the right size and type
+            # Garantir que mask tenha o tamanho e tipo corretos
             if mask.shape[:2] != shirt.shape[:2]:
                 mask = cv2.resize(
                     mask, (shirt.shape[1], shirt.shape[0]), interpolation=cv2.INTER_AREA)
@@ -729,12 +729,12 @@ def predict():
 
             roi_fgs = cv2.bitwise_and(shirt, shirt, mask=mask)
 
-            # Ensure roi_fgs and roi_bgs have the same shape and channels
+            # Garantir que roi_fgs e roi_bgs tenham a mesma forma e canais
             if roi_fgs.shape != roi_bgs.shape:
                 roi_fgs = cv2.resize(
                     roi_fgs, (roi_bgs.shape[1], roi_bgs.shape[0]), interpolation=cv2.INTER_AREA)
 
-            # Make sure they have the same number of channels
+            # Certificar-se de que tenham o mesmo número de canais
             if len(roi_fgs.shape) != len(roi_bgs.shape):
                 if len(roi_fgs.shape) > len(roi_bgs.shape):
                     roi_bgs = cv2.cvtColor(roi_bgs, cv2.COLOR_GRAY2BGR)
@@ -753,39 +753,39 @@ def predict():
     cap.release()
     cv2.destroyAllWindows()
 
-    # Redirect back to the React app
+    # Redirecionar de volta para o app React
     return redirect('/')
 
-# Add API endpoint for compatibility with React frontend
+# Adicionar endpoint da API para compatibilidade com frontend React
 
 
 @app.route('/api/predict', methods=['GET', 'POST'])
 def api_predict():
     return predict()
 
-# API endpoint for skin tone analysis
+# Endpoint da API para análise de tom de pele
 
 
 @app.route('/api/skin-tone-analysis', methods=['POST'])
 def skin_tone_analysis():
     """
-    Analyze skin tone using the SkinToneClassifier library.
+    Analisar tom de pele usando a biblioteca SkinToneClassifier.
 
-    Input options (mutually exclusive):
-    1. JSON body 👉 {"url_image": "http://.../image.jpg"}
-       • The API fará o download da imagem antes de processar.
+    Opções de entrada (mutuamente exclusivas):
+    1. Corpo JSON 👉 {"url_image": "http://.../image.jpg"}
+       • A API fará o download da imagem antes de processar.
     2. multipart/form-data com o campo file "image" (comportamento legado).
     """
     if not SKIN_TONE_AVAILABLE:
         return jsonify({
             'success': False,
-            'error': 'SkinToneClassifier library is not installed on the server'
+            'error': 'Biblioteca SkinToneClassifier não está instalada no servidor'
         }), 500
 
     # --------------------------------------------------
-    # 1) Handle JSON body with an external image URL
+    # 1) Manipular corpo JSON com uma URL de imagem externa
     # --------------------------------------------------
-    tone_category: str = "Medium"  # Default value set early to avoid reference issues
+    tone_category: str = "Médio"  # Valor padrão definido cedo para evitar problemas de referência
     filepath: str | None = None
     if request.is_json:
         json_payload: dict[str, str] = request.get_json(silent=True) or {}
@@ -828,23 +828,23 @@ def skin_tone_analysis():
             pass
 
     # --------------------------------------------------
-    # 2) Handle legacy multipart upload (se URL não foi fornecida)
+    # 2) Manipular upload multipart legado (se URL não foi fornecida)
     # --------------------------------------------------
     if filepath is None:
         if 'image' not in request.files:
             return jsonify({
                 'success': False,
-                'error': 'No image provided. Expecting JSON with "url_image" or multipart field "image".'
+                'error': 'Nenhuma imagem fornecida. Esperando JSON com "url_image" ou campo multipart "image".'
             }), 400
 
         file_storage = request.files['image']
         if file_storage.filename == '':
-            return jsonify({'success': False, 'error': 'No image selected'}), 400
+            return jsonify({'success': False, 'error': 'Nenhuma imagem selecionada'}), 400
 
         if not allowed_file(file_storage.filename):
             return jsonify({
                 'success': False,
-                'error': 'File type not supported. Please upload JPG, JPEG or PNG'
+                'error': 'Tipo de arquivo não suportado. Por favor, envie JPG, JPEG ou PNG'
             }), 400
 
         filename = secure_filename(
@@ -853,42 +853,42 @@ def skin_tone_analysis():
         file_storage.save(filepath)
 
     try:
-        print(f"Processing image at: {filepath}")
+        print(f"Processando imagem em: {filepath}")
 
-        # Process the image with SkinToneClassifier
+        # Processar a imagem com SkinToneClassifier
         try:
             result = SkinToneClassifier.analyze(
                 filepath,
-                tone_palette="perla",  # Use the PERLA palette (default)
-                n_dominant_colors=3,   # Extract 3 dominant colors
-                return_report_image=True  # Include the annotated image in results
+                tone_palette="perla",  # Usar a paleta PERLA (padrão)
+                n_dominant_colors=3,   # Extrair 3 cores dominantes
+                return_report_image=True  # Incluir a imagem anotada nos resultados
             )
-            print("SkinToneClassifier process result:", result)
+            print("Resultado do processo SkinToneClassifier:", result)
         except Exception as process_error:
-            print(f"Error in SkinToneClassifier: {str(process_error)}")
+            print(f"Erro no SkinToneClassifier: {str(process_error)}")
             raise Exception(
-                f"SkinToneClassifier processing error: {str(process_error)}")
+                f"Erro de processamento do SkinToneClassifier: {str(process_error)}")
 
-        # If no faces were detected
+        # Se nenhum rosto foi detectado
         if 'faces' not in result:
-            print("No 'faces' key in result:", result)
+            print("Nenhuma chave 'faces' no resultado:", result)
             return jsonify({
                 'success': False,
-                'error': 'Invalid image format or processing error. Please try a different image.'
+                'error': 'Formato de imagem inválido ou erro de processamento. Por favor, tente uma imagem diferente.'
             }), 400
 
         if not result['faces']:
-            print("Empty 'faces' array in result:", result)
+            print("Array 'faces' vazio no resultado:", result)
             return jsonify({
                 'success': False,
-                'error': 'No face detected in the image. Please upload a clear face photo with good lighting.'
+                'error': 'Nenhum rosto detectado na imagem. Por favor, envie uma foto clara do rosto com boa iluminação.'
             }), 400
 
-        # Get the first face result (most prominent face)
+        # Obter o resultado do primeiro rosto (rosto mais proeminente)
         face = result['faces'][0]
 
-        # Extract colors from the face result
-        # Based on the logs, dominant_colors is an array of objects with 'color' and 'percent' properties
+        # Extrair cores do resultado do rosto
+        # Baseado nos logs, dominant_colors é um array de objetos com propriedades 'color' e 'percent'
         dominant_colors = []
         try:
             if 'dominant_colors' in face:
@@ -896,15 +896,15 @@ def skin_tone_analysis():
                     if 'color' in color_obj:
                         dominant_colors.append(color_obj['color'])
 
-            # If we don't have enough colors, add defaults
+            # Se não temos cores suficientes, adicionar padrões
             while len(dominant_colors) < 3:
                 dominant_colors.append('#E6B76D')
         except Exception as color_error:
-            print(f"Error extracting dominant colors: {str(color_error)}")
+            print(f"Erro ao extrair cores dominantes: {str(color_error)}")
             dominant_colors = ['#E6B76D', '#D99559',
-                               '#C27A46']  # Default fallback
+                               '#C27A46']  # Fallback padrão
 
-        # Save the report image if available
+        # Salvar a imagem do relatório se disponível
         report_image_url = None
         if 'report_images' in result and result['report_images']:
             try:
@@ -913,42 +913,42 @@ def skin_tone_analysis():
                     app.root_path, 'static', 'reports', report_filename)
                 os.makedirs(os.path.dirname(report_filepath), exist_ok=True)
 
-                print(f"Report images found: {type(result['report_images'])}")
-                print(f"Report images content: {result['report_images']}")
+                print(f"Imagens de relatório encontradas: {type(result['report_images'])}")
+                print(f"Conteúdo das imagens de relatório: {result['report_images']}")
 
-                # Handle if report_images is a dictionary (as shown in the logs)
+                # Manipular se report_images for um dicionário (como mostrado nos logs)
                 if isinstance(result['report_images'], dict):
                     report_image = next(iter(result['report_images'].values()))
                     print(
-                        f"Using first image from dictionary: {type(report_image)}")
+                        f"Usando primeira imagem do dicionário: {type(report_image)}")
                 else:
                     report_image = result['report_images'][0]
-                    print(f"Using first image from list: {type(report_image)}")
+                    print(f"Usando primeira imagem da lista: {type(report_image)}")
 
                 cv2.imwrite(report_filepath, report_image)
-                print(f"Report image saved to: {report_filepath}")
+                print(f"Imagem do relatório salva em: {report_filepath}")
                 report_image_url = f"/static/reports/{report_filename}"
-                print(f"Report image URL: {report_image_url}")
+                print(f"URL da imagem do relatório: {report_image_url}")
             except Exception as report_error:
-                print(f"Error saving report image: {str(report_error)}")
-                # Create a basic report image as fallback
+                print(f"Erro ao salvar imagem do relatório: {str(report_error)}")
+                # Criar uma imagem de relatório básica como fallback
                 try:
-                    # Create a simple report image with skin tone information
+                    # Criar uma imagem de relatório simples com informações do tom de pele
                     fallback_report = np.ones(
-                        (400, 600, 3), dtype=np.uint8) * 255  # White background
+                        (400, 600, 3), dtype=np.uint8) * 255  # Fundo branco
 
-                    # Add skin tone information
-                    cv2.putText(fallback_report, f"Skin Tone: {tone_category}", (50, 50),
+                    # Adicionar informações do tom de pele
+                    cv2.putText(fallback_report, f"Tom de Pele: {tone_category}", (50, 50),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
 
-                    # Add color boxes for dominant colors
+                    # Adicionar caixas coloridas para cores dominantes
                     for i, color in enumerate(dominant_colors[:3]):
-                        # Convert hex to RGB
+                        # Converter hex para RGB
                         r = int(color[1:3], 16)
                         g = int(color[3:5], 16)
                         b = int(color[5:7], 16)
 
-                        # Draw colored rectangle
+                        # Desenhar retângulo colorido
                         cv2.rectangle(fallback_report, (50 + i*100, 100),
                                       (130 + i*100, 180), (b, g, r), -1)
 
@@ -957,120 +957,120 @@ def skin_tone_analysis():
                         app.root_path, 'static', 'reports', report_filename)
                     cv2.imwrite(report_filepath, fallback_report)
                     report_image_url = f"/static/reports/{report_filename}"
-                    print(f"Created fallback report image: {report_image_url}")
+                    print(f"Imagem de relatório fallback criada: {report_image_url}")
                 except Exception as fallback_error:
                     print(
-                        f"Error creating fallback report: {str(fallback_error)}")
+                        f"Erro ao criar relatório fallback: {str(fallback_error)}")
 
-        # Map skin tones to seasonal color recommendations
+        # Mapear tons de pele para recomendações de cores sazonais
         seasonal_colors = {
-            'Very Light': {
-                'season': 'Summer',
+            'Muito Claro': {
+                'season': 'Verão',
                 'colors': ['#7EC8E3', '#BFD3C1', '#89CFF0', '#F4C2C2', '#FAF0E6'],
-                'description': 'Your skin has cool undertones with very light depth. Colors that complement your tone include pastels, soft blues, and light pinks. Analysis powered by SkinToneClassifier AI technology.'
+                'description': 'Sua pele tem tons frios com profundidade muito clara. Cores que complementam seu tom incluem pastéis, azuis suaves e rosas claros.'
             },
-            'Light': {
-                'season': 'Spring',
+            'Claro': {
+                'season': 'Primavera',
                 'colors': ['#FFDB58', '#98FB98', '#87CEFA', '#F08080', '#FFDAB9'],
-                'description': 'Your skin has warm undertones with light depth. Colors that complement your tone include warm yellows, light greens, and coral shades. Analysis powered by SkinToneClassifier AI technology.'
+                'description': 'Sua pele tem tons quentes com profundidade clara. Cores que complementam seu tom incluem amarelos quentes, verdes claros e tons coral.'
             },
-            'Medium Light': {
-                'season': 'Spring',
+            'Médio Claro': {
+                'season': 'Primavera',
                 'colors': ['#FFD700', '#90EE90', '#00BFFF', '#FF6347', '#FFDEAD'],
-                'description': 'Your skin has warm undertones with medium light depth. Colors that complement your tone include golden yellows, bright greens, and coral reds. Analysis powered by SkinToneClassifier AI technology.'
+                'description': 'Sua pele tem tons quentes com profundidade médio clara. Cores que complementam seu tom incluem amarelos dourados, verdes vibrantes e vermelhos coral.'
             },
-            'Medium': {
-                'season': 'Autumn',
+            'Médio': {
+                'season': 'Outono',
                 'colors': ['#8B5A2B', '#F4A460', '#CD853F', '#006400', '#FF7F50'],
-                'description': 'Your skin has warm undertones with medium depth. Colors that complement your tone include earth tones, warm greens, and coral shades. Analysis powered by SkinToneClassifier AI technology.'
+                'description': 'Sua pele tem tons quentes com profundidade média. Cores que complementam seu tom incluem tons terrosos, verdes quentes e tons coral.'
             },
-            'Medium Dark': {
-                'season': 'Autumn',
+            'Médio Escuro': {
+                'season': 'Outono',
                 'colors': ['#B8860B', '#A0522D', '#556B2F', '#8B0000', '#D2691E'],
-                'description': 'Your skin has warm undertones with medium dark depth. Colors that complement your tone include rich golds, olive greens, and brick reds. Analysis powered by SkinToneClassifier AI technology.'
+                'description': 'Sua pele tem tons quentes com profundidade médio escura. Cores que complementam seu tom incluem dourados ricos, verdes oliva e vermelhos tijolo.'
             },
-            'Dark': {
-                'season': 'Winter',
+            'Escuro': {
+                'season': 'Inverno',
                 'colors': ['#4B0082', '#800000', '#008000', '#000080', '#FF0000'],
-                'description': 'Your skin has cool undertones with dark depth. Colors that complement your tone include royal purples, deep reds, and forest greens. Analysis powered by SkinToneClassifier AI technology.'
+                'description': 'Sua pele tem tons frios com profundidade escura. Cores que complementam seu tom incluem roxos reais, vermelhos profundos e verdes florestais.'
             },
-            'Very Dark': {
-                'season': 'Winter',
+            'Muito Escuro': {
+                'season': 'Inverno',
                 'colors': ['#800080', '#8B0000', '#006400', '#000080', '#FF4500'],
-                'description': 'Your skin has cool undertones with very dark depth. Colors that complement your tone include bold purples, rich reds, and deep blues. Analysis powered by SkinToneClassifier AI technology.'
+                'description': 'Sua pele tem tons frios com profundidade muito escura. Cores que complementam seu tom incluem roxos ousados, vermelhos ricos e azuis profundos.'
             }
         }
 
-        # Determine tone category based on skin tone value
-        # We're going to use a simpler approach based on the actual data in the logs
-        tone_category = 'Medium'  # Default
+        # Determinar categoria de tom baseada no valor do tom de pele
+        # Vamos usar uma abordagem mais simples baseada nos dados reais dos logs
+        tone_category = 'Médio'  # Padrão
 
         try:
-            # Try to use the skin_tone hex value to determine the brightness/category
+            # Tentar usar o valor hex do skin_tone para determinar o brilho/categoria
             if 'skin_tone' in face:
                 skin_tone_hex = face['skin_tone']
-                # Hex to RGB conversion for simple brightness calculation
+                # Conversão hex para RGB para cálculo simples de brilho
                 r = int(skin_tone_hex[1:3], 16)
                 g = int(skin_tone_hex[3:5], 16)
                 b = int(skin_tone_hex[5:7], 16)
 
-                # Simple brightness formula (0-255)
+                # Fórmula simples de brilho (0-255)
                 brightness = (r + g + b) / 3
 
-                # Map brightness to tone categories
+                # Mapear brilho para categorias de tom
                 if brightness > 220:
-                    tone_category = 'Very Light'
+                    tone_category = 'Muito Claro'
                 elif brightness > 190:
-                    tone_category = 'Light'
+                    tone_category = 'Claro'
                 elif brightness > 160:
-                    tone_category = 'Medium Light'
+                    tone_category = 'Médio Claro'
                 elif brightness > 130:
-                    tone_category = 'Medium'
+                    tone_category = 'Médio'
                 elif brightness > 100:
-                    tone_category = 'Medium Dark'
+                    tone_category = 'Médio Escuro'
                 elif brightness > 70:
-                    tone_category = 'Dark'
+                    tone_category = 'Escuro'
                 else:
-                    tone_category = 'Very Dark'
+                    tone_category = 'Muito Escuro'
 
                 print(
-                    f"Mapped skin tone {skin_tone_hex} with brightness {brightness} to category: {tone_category}")
+                    f"Mapeado tom de pele {skin_tone_hex} com brilho {brightness} para categoria: {tone_category}")
         except Exception as mapping_error:
-            print(f"Error determining tone category: {str(mapping_error)}")
+            print(f"Erro ao determinar categoria de tom: {str(mapping_error)}")
 
-        # Get the seasonal color recommendations
+        # Obter as recomendações de cores sazonais
         season_data = seasonal_colors.get(
-            tone_category, seasonal_colors['Medium'])
+            tone_category, seasonal_colors['Médio'])
 
-        # Return results
+        # Retornar resultados
         return jsonify({
             'success': True,
             'tone': tone_category,
             'season': season_data['season'],
-            'colors': dominant_colors[:3],  # Top 3 dominant colors
+            'colors': dominant_colors[:3],  # Top 3 cores dominantes
             'description': season_data['description'],
             'recommendedColors': season_data['colors'],
             'reportImage': report_image_url
         })
 
     except Exception as e:
-        print(f"Error in skin tone analysis: {str(e)}")
+        print(f"Erro na análise do tom de pele: {str(e)}")
 
-        # Provide fallback results in case of error
+        # Fornecer resultados de fallback em caso de erro
         fallback_data = {
-            'success': True,  # Still return success to show something to the user
-            'tone': 'Medium',
-            'season': 'Autumn',
+            'success': True,  # Ainda retornar sucesso para mostrar algo ao usuário
+            'tone': 'Médio',
+            'season': 'Outono',
             'colors': ['#E6B76D', '#D99559', '#C27A46'],
-            'description': 'Analysis based on fallback data. Your skin appears to have warm undertones with medium depth. Colors that complement warm medium tones include earth tones, warm greens, and coral shades. Analysis powered by SkinToneClassifier AI technology.',
+            'description': 'Análise baseada em dados de fallback. Sua pele parece ter tons quentes com profundidade média. Cores que complementam tons médios quentes incluem tons terrosos, verdes quentes e tons coral. Análise alimentada pela tecnologia de IA SkinToneClassifier.',
             'recommendedColors': ['#8B5A2B', '#F4A460', '#CD853F', '#006400', '#FF7F50'],
-            # Provide a fallback report image
+            # Fornecer uma imagem de relatório de fallback
             'reportImage': '/static/assets/fallback_report.jpg'
         }
 
         return jsonify(fallback_data)
     finally:
-        # Clean up the uploaded file
+        # Limpar o arquivo enviado
         if 'filepath' in locals() and os.path.exists(filepath):
             try:
                 os.remove(filepath)
