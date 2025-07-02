@@ -495,7 +495,8 @@ def predict():
         # Ler a camisa selecionada
         imgshirt = cv2.imread(shirt_path, 1)  # imagem original em bgr
         if imgshirt is None:
-            print(f"Erro: Não foi possível ler a imagem da camisa em {shirt_path}")
+            print(
+                f"Erro: Não foi possível ler a imagem da camisa em {shirt_path}")
             # Usar uma camisa padrão como fallback
             imgshirt = cv2.imread(os.path.join(
                 app.root_path, 'static/assets/shirt1.png'), 1)
@@ -531,7 +532,8 @@ def predict():
         # Ler a calça selecionada
         imgpant = cv2.imread(pant_path, 1)
         if imgpant is None:
-            print(f"Erro: Não foi possível ler a imagem da calça em {pant_path}")
+            print(
+                f"Erro: Não foi possível ler a imagem da calça em {pant_path}")
             # Usar uma calça padrão como fallback
             imgpant = cv2.imread(os.path.join(
                 app.root_path, 'static/assets/pant7.jpg'), 1)
@@ -764,6 +766,8 @@ def api_predict():
     return predict()
 
 # Função para criar relatório personalizado completo
+
+
 def create_custom_report(original_img, face_data, dominant_colors, tone_category, season_data):
     """
     Criar uma imagem de relatório completo com todas as informações visuais
@@ -772,8 +776,9 @@ def create_custom_report(original_img, face_data, dominant_colors, tone_category
         # Criar uma imagem maior para o relatório completo
         report_height = 700
         report_width = 900
-        report_img = np.ones((report_height, report_width, 3), dtype=np.uint8) * 255
-        
+        report_img = np.ones(
+            (report_height, report_width, 3), dtype=np.uint8) * 255
+
         # 1. Adicionar imagem original (redimensionada) no canto esquerdo
         img_height, img_width = original_img.shape[:2]
         # Calcular proporção para manter aspecto
@@ -781,73 +786,80 @@ def create_custom_report(original_img, face_data, dominant_colors, tone_category
         scale = min(max_img_width/img_width, max_img_height/img_height)
         new_width = int(img_width * scale)
         new_height = int(img_height * scale)
-        
+
         img_resized = cv2.resize(original_img, (new_width, new_height))
         y_offset = 50
         x_offset = 50
-        report_img[y_offset:y_offset+new_height, x_offset:x_offset+new_width] = img_resized
-        
+        report_img[y_offset:y_offset+new_height,
+                   x_offset:x_offset+new_width] = img_resized
+
         # 2. Título principal
-        cv2.putText(report_img, "ANALISE DE TOM DE PELE", (350, 40), 
+        cv2.putText(report_img, "ANALISE DE TOM DE PELE", (350, 40),
                     cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 2)
-        
+
         # 3. Seção de cores dominantes
-        cv2.putText(report_img, "Cores Dominantes:", (350, 80), 
+        cv2.putText(report_img, "Cores Dominantes:", (350, 80),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
-        
+
         for i, color in enumerate(dominant_colors[:3]):
             try:
                 r = int(color[1:3], 16)
-                g = int(color[3:5], 16) 
+                g = int(color[3:5], 16)
                 b = int(color[5:7], 16)
-                
+
                 # Desenhar retângulo colorido
                 x_pos = 350 + i*120
-                cv2.rectangle(report_img, (x_pos, 100), (x_pos+80, 160), (b, g, r), -1)
+                cv2.rectangle(report_img, (x_pos, 100),
+                              (x_pos+80, 160), (b, g, r), -1)
                 # Adicionar borda
-                cv2.rectangle(report_img, (x_pos, 100), (x_pos+80, 160), (0, 0, 0), 2)
+                cv2.rectangle(report_img, (x_pos, 100),
+                              (x_pos+80, 160), (0, 0, 0), 2)
                 # Adicionar código hex
-                cv2.putText(report_img, color, (x_pos, 180), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1)
+                cv2.putText(report_img, color, (x_pos, 180),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1)
             except ValueError:
                 # Se houver erro na conversão de cor, usar cor padrão
-                cv2.rectangle(report_img, (x_pos, 100), (x_pos+80, 160), (200, 200, 200), -1)
-        
+                cv2.rectangle(report_img, (x_pos, 100),
+                              (x_pos+80, 160), (200, 200, 200), -1)
+
         # 4. Informações do tom de pele
-        cv2.putText(report_img, f"Tom de Pele: {tone_category}", (50, 400), 
+        cv2.putText(report_img, f"Tom de Pele: {tone_category}", (50, 400),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2)
-        cv2.putText(report_img, f"Estacao Cromatica: {season_data['season']}", (50, 430), 
+        cv2.putText(report_img, f"Estacao Cromatica: {season_data['season']}", (50, 430),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 1)
-        
+
         # 5. Seção de cores recomendadas
-        cv2.putText(report_img, "Cores Recomendadas para Voce:", (50, 480), 
+        cv2.putText(report_img, "Cores Recomendadas para Voce:", (50, 480),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
-        
+
         for i, color in enumerate(season_data['colors'][:5]):
             try:
                 r = int(color[1:3], 16)
                 g = int(color[3:5], 16)
                 b = int(color[5:7], 16)
-                
+
                 x_pos = 50 + i*90
                 # Desenhar retângulo colorido maior para cores recomendadas
-                cv2.rectangle(report_img, (x_pos, 500), (x_pos+70, 560), (b, g, r), -1)
+                cv2.rectangle(report_img, (x_pos, 500),
+                              (x_pos+70, 560), (b, g, r), -1)
                 # Adicionar borda
-                cv2.rectangle(report_img, (x_pos, 500), (x_pos+70, 560), (0, 0, 0), 2)
+                cv2.rectangle(report_img, (x_pos, 500),
+                              (x_pos+70, 560), (0, 0, 0), 2)
                 # Adicionar código hex
-                cv2.putText(report_img, color, (x_pos-5, 580), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 0, 0), 1)
+                cv2.putText(report_img, color, (x_pos-5, 580),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 0, 0), 1)
             except ValueError:
                 # Se houver erro na conversão de cor, usar cor padrão
-                cv2.rectangle(report_img, (x_pos, 500), (x_pos+70, 560), (150, 150, 150), -1)
-        
+                cv2.rectangle(report_img, (x_pos, 500),
+                              (x_pos+70, 560), (150, 150, 150), -1)
+
         # 6. Adicionar descrição (quebrada em linhas)
         description = season_data['description']
         words = description.split(' ')
         lines = []
         current_line = ""
         max_chars_per_line = 70
-        
+
         for word in words:
             if len(current_line + word) < max_chars_per_line:
                 current_line += word + " "
@@ -856,25 +868,25 @@ def create_custom_report(original_img, face_data, dominant_colors, tone_category
                 current_line = word + " "
         if current_line.strip():
             lines.append(current_line.strip())
-        
+
         # Desenhar as linhas da descrição
         start_y = 620
         for i, line in enumerate(lines[:3]):  # Máximo 3 linhas
-            cv2.putText(report_img, line, (50, start_y + i*25), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (50, 50, 50), 1)
-        
+            cv2.putText(report_img, line, (50, start_y + i*25),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (50, 50, 50), 1)
+
         # 7. Adicionar rodapé
-        cv2.putText(report_img, "Analise realizada com SkinToneClassifier AI", (50, 680), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.4, (100, 100, 100), 1)
-        
+        cv2.putText(report_img, "Analise realizada com SkinToneClassifier AI", (50, 680),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, (100, 100, 100), 1)
+
         return report_img
-        
+
     except Exception as e:
         print(f"Erro ao criar relatório personalizado: {str(e)}")
         # Retornar imagem básica em caso de erro
         basic_report = np.ones((400, 600, 3), dtype=np.uint8) * 255
-        cv2.putText(basic_report, f"Tom de Pele: {tone_category}", (50, 200), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
+        cv2.putText(basic_report, f"Tom de Pele: {tone_category}", (50, 200),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
         return basic_report
 
 
@@ -900,7 +912,8 @@ def skin_tone_analysis():
     # --------------------------------------------------
     # 1) Manipular corpo JSON com uma URL de imagem externa
     # --------------------------------------------------
-    tone_category: str = "Médio"  # Valor padrão definido cedo para evitar problemas de referência
+    # Valor padrão definido cedo para evitar problemas de referência
+    tone_category: str = "Médio"
     filepath: str | None = None
     if request.is_json:
         json_payload: dict[str, str] = request.get_json(silent=True) or {}
@@ -1019,123 +1032,6 @@ def skin_tone_analysis():
             dominant_colors = ['#E6B76D', '#D99559',
                                '#C27A46']  # Fallback padrão
 
-        # Salvar a imagem do relatório se disponível
-        report_image_url = None
-        full_report_image_url = None
-        
-        if 'report_images' in result and result['report_images']:
-            try:
-                report_filename = f"report_{filename}"
-                report_filepath = os.path.join(
-                    app.root_path, 'static', 'reports', report_filename)
-                os.makedirs(os.path.dirname(report_filepath), exist_ok=True)
-
-                print(f"Imagens de relatório encontradas: {type(result['report_images'])}")
-                print(f"Conteúdo das imagens de relatório: {result['report_images']}")
-
-                # Manipular se report_images for um dicionário (como mostrado nos logs)
-                if isinstance(result['report_images'], dict):
-                    report_image = next(iter(result['report_images'].values()))
-                    print(
-                        f"Usando primeira imagem do dicionário: {type(report_image)}")
-                else:
-                    report_image = result['report_images'][0]
-                    print(f"Usando primeira imagem da lista: {type(report_image)}")
-
-                cv2.imwrite(report_filepath, report_image)
-                print(f"Imagem do relatório salva em: {report_filepath}")
-                report_image_url = f"/static/reports/{report_filename}"
-                print(f"URL da imagem do relatório: {report_image_url}")
-            except Exception as report_error:
-                print(f"Erro ao salvar imagem do relatório: {str(report_error)}")
-        
-        # Criar e salvar relatório completo personalizado
-        try:
-            # Ler a imagem original para o relatório completo
-            original_img = cv2.imread(filepath)
-            if original_img is not None:
-                # Criar relatório completo personalizado
-                full_report_image = create_custom_report(
-                    original_img, 
-                    face, 
-                    dominant_colors, 
-                    tone_category, 
-                    season_data
-                )
-                
-                # Salvar relatório completo
-                full_report_filename = f"full_report_{filename}"
-                full_report_filepath = os.path.join(
-                    app.root_path, 'static', 'reports', full_report_filename)
-                os.makedirs(os.path.dirname(full_report_filepath), exist_ok=True)
-                
-                cv2.imwrite(full_report_filepath, full_report_image)
-                full_report_image_url = f"/static/reports/{full_report_filename}"
-                print(f"Relatório completo salvo em: {full_report_image_url}")
-                
-        except Exception as full_report_error:
-            print(f"Erro ao criar relatório completo: {str(full_report_error)}")
-            # Criar fallback básico para relatório completo
-            try:
-                fallback_full_report = np.ones((500, 700, 3), dtype=np.uint8) * 255
-                cv2.putText(fallback_full_report, f"Tom de Pele: {tone_category}", (50, 100),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2)
-                cv2.putText(fallback_full_report, f"Estacao: {season_data['season']}", (50, 150),
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 1)
-                
-                # Adicionar cores dominantes
-                for i, color in enumerate(dominant_colors[:3]):
-                    try:
-                        r = int(color[1:3], 16)
-                        g = int(color[3:5], 16)
-                        b = int(color[5:7], 16)
-                        cv2.rectangle(fallback_full_report, (50 + i*120, 200),
-                                    (120 + i*120, 270), (b, g, r), -1)
-                    except:
-                        cv2.rectangle(fallback_full_report, (50 + i*120, 200),
-                                    (120 + i*120, 270), (200, 200, 200), -1)
-                
-                full_report_filename = f"fallback_full_report_{filename}"
-                full_report_filepath = os.path.join(
-                    app.root_path, 'static', 'reports', full_report_filename)
-                cv2.imwrite(full_report_filepath, fallback_full_report)
-                full_report_image_url = f"/static/reports/{full_report_filename}"
-                print(f"Relatório completo fallback criado: {full_report_image_url}")
-            except Exception as fallback_error:
-                print(f"Erro ao criar fallback do relatório completo: {str(fallback_error)}")
-        
-        # Criar fallback básico se report_image_url ainda for None
-        if report_image_url is None:
-            try:
-                # Criar uma imagem de relatório básica como fallback
-                fallback_report = np.ones(
-                    (400, 600, 3), dtype=np.uint8) * 255  # Fundo branco
-
-                # Adicionar informações do tom de pele
-                cv2.putText(fallback_report, f"Tom de Pele: {tone_category}", (50, 50),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
-
-                # Adicionar caixas coloridas para cores dominantes
-                for i, color in enumerate(dominant_colors[:3]):
-                    # Converter hex para RGB
-                    r = int(color[1:3], 16)
-                    g = int(color[3:5], 16)
-                    b = int(color[5:7], 16)
-
-                    # Desenhar retângulo colorido
-                    cv2.rectangle(fallback_report, (50 + i*100, 100),
-                                  (130 + i*100, 180), (b, g, r), -1)
-
-                report_filename = f"fallback_report_{filename}"
-                report_filepath = os.path.join(
-                    app.root_path, 'static', 'reports', report_filename)
-                cv2.imwrite(report_filepath, fallback_report)
-                report_image_url = f"/static/reports/{report_filename}"
-                print(f"Imagem de relatório fallback criada: {report_image_url}")
-            except Exception as fallback_error:
-                print(
-                    f"Erro ao criar relatório fallback: {str(fallback_error)}")
-
         # Mapear tons de pele para recomendações de cores sazonais
         seasonal_colors = {
             'Muito Claro': {
@@ -1176,9 +1072,7 @@ def skin_tone_analysis():
         }
 
         # Determinar categoria de tom baseada no valor do tom de pele
-        # Vamos usar uma abordagem mais simples baseada nos dados reais dos logs
         tone_category = 'Médio'  # Padrão
-
         try:
             # Tentar usar o valor hex do skin_tone para determinar o brilho/categoria
             if 'skin_tone' in face:
@@ -1216,6 +1110,133 @@ def skin_tone_analysis():
         season_data = seasonal_colors.get(
             tone_category, seasonal_colors['Médio'])
 
+        # Salvar a imagem do relatório se disponível
+        report_image_url = None
+        full_report_image_url = None
+
+        if 'report_images' in result and result['report_images']:
+            try:
+                report_filename = f"report_{filename}"
+                report_filepath = os.path.join(
+                    app.root_path, 'static', 'reports', report_filename)
+                os.makedirs(os.path.dirname(report_filepath), exist_ok=True)
+
+                print(
+                    f"Imagens de relatório encontradas: {type(result['report_images'])}")
+                print(
+                    f"Conteúdo das imagens de relatório: {result['report_images']}")
+
+                # Manipular se report_images for um dicionário (como mostrado nos logs)
+                if isinstance(result['report_images'], dict):
+                    report_image = next(iter(result['report_images'].values()))
+                    print(
+                        f"Usando primeira imagem do dicionário: {type(report_image)}")
+                else:
+                    report_image = result['report_images'][0]
+                    print(
+                        f"Usando primeira imagem da lista: {type(report_image)}")
+
+                cv2.imwrite(report_filepath, report_image)
+                print(f"Imagem do relatório salva em: {report_filepath}")
+                report_image_url = f"/static/reports/{report_filename}"
+                print(f"URL da imagem do relatório: {report_image_url}")
+            except Exception as report_error:
+                print(
+                    f"Erro ao salvar imagem do relatório: {str(report_error)}")
+
+        # Criar e salvar relatório completo personalizado
+        try:
+            # Ler a imagem original para o relatório completo
+            original_img = cv2.imread(filepath)
+            if original_img is not None:
+                # Criar relatório completo personalizado
+                full_report_image = create_custom_report(
+                    original_img,
+                    face,
+                    dominant_colors,
+                    tone_category,
+                    season_data
+                )
+
+                # Salvar relatório completo
+                full_report_filename = f"full_report_{filename}"
+                full_report_filepath = os.path.join(
+                    app.root_path, 'static', 'reports', full_report_filename)
+                os.makedirs(os.path.dirname(
+                    full_report_filepath), exist_ok=True)
+
+                cv2.imwrite(full_report_filepath, full_report_image)
+                full_report_image_url = f"/static/reports/{full_report_filename}"
+                print(f"Relatório completo salvo em: {full_report_image_url}")
+
+        except Exception as full_report_error:
+            print(
+                f"Erro ao criar relatório completo: {str(full_report_error)}")
+            # Criar fallback básico para relatório completo
+            try:
+                fallback_full_report = np.ones(
+                    (500, 700, 3), dtype=np.uint8) * 255
+                cv2.putText(fallback_full_report, f"Tom de Pele: {tone_category}", (50, 100),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 2)
+                cv2.putText(fallback_full_report, f"Estacao: {season_data['season']}", (50, 150),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 1)
+
+                # Adicionar cores dominantes
+                for i, color in enumerate(dominant_colors[:3]):
+                    try:
+                        r = int(color[1:3], 16)
+                        g = int(color[3:5], 16)
+                        b = int(color[5:7], 16)
+                        cv2.rectangle(fallback_full_report, (50 + i*120, 200),
+                                      (120 + i*120, 270), (b, g, r), -1)
+                    except:
+                        cv2.rectangle(fallback_full_report, (50 + i*120, 200),
+                                      (120 + i*120, 270), (200, 200, 200), -1)
+
+                full_report_filename = f"fallback_full_report_{filename}"
+                full_report_filepath = os.path.join(
+                    app.root_path, 'static', 'reports', full_report_filename)
+                cv2.imwrite(full_report_filepath, fallback_full_report)
+                full_report_image_url = f"/static/reports/{full_report_filename}"
+                print(
+                    f"Relatório completo fallback criado: {full_report_image_url}")
+            except Exception as fallback_error:
+                print(
+                    f"Erro ao criar fallback do relatório completo: {str(fallback_error)}")
+
+        # Criar fallback básico se report_image_url ainda for None
+        if report_image_url is None:
+            try:
+                # Criar uma imagem de relatório básica como fallback
+                fallback_report = np.ones(
+                    (400, 600, 3), dtype=np.uint8) * 255  # Fundo branco
+
+                # Adicionar informações do tom de pele
+                cv2.putText(fallback_report, f"Tom de Pele: {tone_category}", (50, 50),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
+
+                # Adicionar caixas coloridas para cores dominantes
+                for i, color in enumerate(dominant_colors[:3]):
+                    # Converter hex para RGB
+                    r = int(color[1:3], 16)
+                    g = int(color[3:5], 16)
+                    b = int(color[5:7], 16)
+
+                    # Desenhar retângulo colorido
+                    cv2.rectangle(fallback_report, (50 + i*100, 100),
+                                  (130 + i*100, 180), (b, g, r), -1)
+
+                report_filename = f"fallback_report_{filename}"
+                report_filepath = os.path.join(
+                    app.root_path, 'static', 'reports', report_filename)
+                cv2.imwrite(report_filepath, fallback_report)
+                report_image_url = f"/static/reports/{report_filename}"
+                print(
+                    f"Imagem de relatório fallback criada: {report_image_url}")
+            except Exception as fallback_error:
+                print(
+                    f"Erro ao criar relatório fallback: {str(fallback_error)}")
+
         # Retornar resultados
         return jsonify({
             'success': True,
@@ -1241,7 +1262,8 @@ def skin_tone_analysis():
             'recommendedColors': ['#8B5A2B', '#F4A460', '#CD853F', '#006400', '#FF7F50'],
             # Fornecer uma imagem de relatório de fallback
             'reportImage': '/static/assets/fallback_report.jpg',
-            'fullReport': '/static/assets/fallback_full_report.jpg'  # Fallback para relatório completo
+            # Fallback para relatório completo
+            'fullReport': '/static/assets/fallback_full_report.jpg'
         }
 
         return jsonify(fallback_data)
